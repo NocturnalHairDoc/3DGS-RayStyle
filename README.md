@@ -39,6 +39,7 @@ scripts/         weight download and ablation helpers
 tests/           CPU-safe unit tests
 docs/            experiment definition and cross-scene notes
 style/           location for user-provided reference images
+environment.yml  Conda dependencies used by RayStyle
 ```
 
 Datasets, Gaussian checkpoints, DINO weights, segment masks, HDR maps, and
@@ -58,24 +59,18 @@ upstream source is copied into this repository.
 
 ## Installation
 
-Use the environment in which the upstream renderer already works:
+First prepare the upstream 3DGS environment, including PyTorch, CUDA, and its
+compiled rasterizers. RayStyle adds its Python dependencies to that environment:
 
 ```bash
+conda env update --file environment.yml
 conda activate gaussian_splatting_v2
-python -m pip install -e . --no-deps
 ```
 
-Install the Python dependencies separately if they are not already present:
-
-```bash
-python -m pip install numpy Pillow PyYAML imageio scipy tqdm
-```
-
-The interactive viewer also requires Dear PyGui:
-
-```bash
-python -m pip install "dearpygui>=1.10"
-```
+Do not add `--prune` when updating an existing environment, because it may
+remove packages and CUDA extensions required by the upstream renderer. PyTorch
+and the CUDA toolkit are intentionally not pinned in `environment.yml`; their
+versions must match the renderer installation.
 
 Download the original DINO ViT-B/8 checkpoint:
 
