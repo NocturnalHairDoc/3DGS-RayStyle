@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Environments and editors
+.venv/
+venv/
+.env
+.env.*
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Local experiment configuration
+configs/*.yaml
+!configs/mvp.example.yaml
+
+# Datasets, masks, model weights, and HDR assets
+data/
+datasets/
+segments/
+segmentation_res/
+weights/
+hdr/
+*.pt
+*.pth
+*.ckpt
+*.npz
+*.ply
+*.hdr
+*.exr
+*.part
+
+# Generated results and diagnostics
+outputs/
+diagnostics/
+runs/
+wandb/
+*.log
+
+# Reference images are user-provided. Keep only their documentation.
+style/*
+!style/README.md

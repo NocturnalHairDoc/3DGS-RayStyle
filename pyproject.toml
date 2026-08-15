@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "raystyle-mvp"
+version = "0.1.0"
+description = "Region-aware, illumination-consistent style transfer for pretrained 3D Gaussian scenes"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "Pillow>=9.0",
+  "PyYAML>=6.0",
+  "imageio>=2.31",
+  "scipy>=1.10",
+  "torch>=2.0",
+  "torchvision>=0.15",
+  "tqdm>=4.65",
+]
+
+[project.optional-dependencies]
+viewer = ["dearpygui>=1.10"]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+raystyle = "raystyle.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["raystyle*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,63 @@
+# Paths are resolved relative to this YAML file.
+method: ours                 # ours | dc | full_sh | pbr_only
+workspace_root: ../..
+scene: 3DGS-RTMaterial:bicycle
+legacy_root: ../../3DGS-RTMaterial-clean-validation
+# model_path/source_path/images/resolution/background are read from the
+# selected sibling scene's cfg_args. Leave them empty unless overriding it.
+model_path: ""
+source_path: ""
+images: images
+resolution: -1
+white_background: false
+project_state: /absolute/path/to/gui_project_state.npz  # also accepts precomputed_mask.pt
+segment_id: 1               # one-based segment id shown by the existing GUI
+reference_image: /absolute/path/to/style_reference.jpg
+dino_checkpoint: /absolute/path/to/dino_vitbase8_pretrain.pth
+environment_dir: /absolute/path/to/hdr_directory
+output_dir: ../outputs/ours
+
+train:
+  iterations: 2000
+  learning_rate: 0.01
+  texture_learning_rate: 0.002
+  albedo_mode: replacement
+  seed: 42
+  sh_degree: 1              # low-dimensional residual: (degree + 1)^2 coefficients
+  residual_limit: 0.08
+  global_shift_limit: 0.7
+  detail_residual_limit: 0.08
+  texture_resolution: 256   # resolution of each tri-planar chart
+  texture_logit_limit: 4.0
+  texture_mapping: triplanar
+  texture_init_strength: 1.0
+  texture_stage_iterations: 1200
+  image_size: 224
+  preview_every: 100
+  checkpoint_every: 500
+  graph_anchors: 512
+  graph_neighbours: 8
+  min_segment_coverage: 0.005 # reject views where the segment has too few style patches
+  random_hdr: true
+  random_exposure_min: -1.0
+  random_exposure_max: 1.0
+  pbr_diffuse_white: 1.0
+  pbr_exposure: 0.0
+  pbr_white_point: 1.0
+
+losses:
+  style: 1.0
+  patch_style: 2.0          # DINO NNFM + 96/160/224 RGB patch matching
+  content: 0.5
+  graph: 0.05
+  outside: 10.0
+  material_prior: 0.01
+  hdr_consistency: 0.5       # same camera, two HDRs, normalized local structure
+  texture_anchor: 0.2        # keep the learned field near the reference initialization
+  texture_delta_tv: 0.05     # suppress sparse-view noise in texture updates
+  color_mean: 2.0            # absolute RGB + Lab mean match on UV albedo
+  render_color: 2.0          # post-PBR RGB + Lab mean match in segment ROI
+
+evaluation:
+  max_views: 12
+  heldout_env_count: 3
