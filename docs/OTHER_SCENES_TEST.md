@@ -143,3 +143,6 @@ editing does not yet provide proportional compute or memory savings.
    preserved instead of a tri-planar painterly material.
 3. Add visibility/ROI culling for large scenes such as stump.
 4. Refine soft-mask boundary evaluation for bright, high-contrast edits.
+5. Retrain the road and irregular-object cases with `graph_scope: appearance`
+   versus `material` to measure whether albedo/detail/SH propagation improves
+   multi-view coherence without erasing deliberate high-frequency strokes.

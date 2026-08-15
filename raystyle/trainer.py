@@ -238,7 +238,9 @@ class Trainer:
                 "style": self.style_loss.global_loss(stylized, stylized_features, mask),
                 "patch_style": self.style_loss.patch_loss(stylized, stylized_features, mask),
                 "content": dino_content_loss(stylized_features, original_features, mask),
-                "graph": self.graph.regularize(self.state.graph_values()),
+                "graph": self.graph.regularize(
+                    self.state.graph_values(cfg.graph_scope),
+                ),
                 "outside": outside_preservation_loss(stylized, original, mask),
                 "material_prior": self.state.material_prior(),
                 "texture_anchor": texture_anchor,

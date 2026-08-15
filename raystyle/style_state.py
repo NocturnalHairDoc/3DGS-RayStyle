@@ -124,15 +124,40 @@ class StyleState(nn.Module):
     def residual(self):
         return self.residual_limit * torch.tanh(self.sh_residual)
 
-    def graph_values(self):
+    @staticmethod
+    def _balanced_graph_parts(parts: list[torch.Tensor]) -> torch.Tensor:
+        """Concatenate fields while giving each semantic field equal L1 weight."""
+        flat = [part.flatten(1) for part in parts]
+        total_width = sum(part.shape[1] for part in flat)
+        group_count = len(flat)
+        scaled = [
+            part * (total_width / (group_count * part.shape[1]))
+            for part in flat
+        ]
+        return torch.cat(scaled, dim=1)
+
+    def graph_values(self, scope: str = "appearance"):
+        """Per-Gaussian values regularized by the spatial anchor graph.
+
+        ``appearance`` covers every spatially varying trainable appearance
+        field. For ``ours`` this is albedo, light-independent detail, PBR
+        material, and the low-order SH residual. ``material`` reproduces the
+        former Ours behavior and restricts it to roughness and metallic.
+        """
+        if scope not in {"appearance", "material"}:
+            raise ValueError("graph scope must be 'appearance' or 'material'")
         parts = []
         if self.method == "ours":
+            if scope == "appearance":
+                parts.extend((self.selected_albedo(), self.selected_detail()))
             parts.extend((self.selected_roughness(), self.selected_metallic()))
+            if scope == "appearance" and self.sh_residual.numel():
+                parts.append(self.residual())
         elif self.method == "pbr_only":
             parts.extend((self.selected_albedo(), self.selected_roughness(), self.selected_metallic()))
         if self.sh_residual.numel() and self.method != "ours":
-            parts.append(self.residual().flatten(1))
-        return torch.cat(parts, dim=1)
+            parts.append(self.residual())
+        return self._balanced_graph_parts(parts)
 
     def material_prior(self):
         if self.method not in {"ours", "pbr_only"}:

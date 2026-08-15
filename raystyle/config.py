@@ -46,6 +46,7 @@ class TrainConfig:
     checkpoint_every: int = 500
     graph_anchors: int = 512
     graph_neighbours: int = 8
+    graph_scope: str = "appearance"
     min_segment_coverage: float = 0.005
     random_hdr: bool = True
     random_exposure_min: float = -1.0
@@ -107,6 +108,8 @@ class ExperimentConfig:
             raise ValueError("train.detail_residual_limit cannot be negative")
         if self.train.texture_stage_iterations < 0:
             raise ValueError("train.texture_stage_iterations cannot be negative")
+        if self.train.graph_scope not in {"appearance", "material"}:
+            raise ValueError("train.graph_scope must be 'appearance' or 'material'")
         if self.train.pbr_diffuse_white <= 0:
             raise ValueError("train.pbr_diffuse_white must be positive")
         if self.train.pbr_white_point <= 0:

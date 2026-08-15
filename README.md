@@ -20,6 +20,9 @@ training, the renderer samples calibrated scene cameras and HDR environments.
 The objective combines reference style statistics, segment-cropped multi-scale
 patch matching, DINO content preservation, an anchor-graph regularizer, an
 outside-region preservation term, and luminance-normalized HDR consistency.
+By default the graph covers albedo, light-independent detail, PBR material, and
+the low-order SH residual. Set `train.graph_scope: material` to reproduce the
+older roughness/metallic-only graph for an ablation.
 
 Three simpler parameterizations are included for comparison:
 
@@ -196,7 +199,9 @@ bash scripts/run_all_methods.sh configs/local_scene.yaml
 
 The loss definitions and evaluation protocol are described in
 [docs/EXPERIMENT.md](docs/EXPERIMENT.md). Cross-scene observations are recorded
-in [docs/OTHER_SCENES_TEST.md](docs/OTHER_SCENES_TEST.md).
+in [docs/OTHER_SCENES_TEST.md](docs/OTHER_SCENES_TEST.md). Results for the
+appearance-graph ablation are reported in
+[docs/GRAPH_SCOPE_ABLATION.md](docs/GRAPH_SCOPE_ABLATION.md).
 
 ## License note
 

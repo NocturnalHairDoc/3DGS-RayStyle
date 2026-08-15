@@ -37,6 +37,7 @@ train:
   checkpoint_every: 500
   graph_anchors: 512
   graph_neighbours: 8
+  graph_scope: appearance   # appearance | material (legacy roughness/metallic only)
   min_segment_coverage: 0.005 # reject views where the segment has too few style patches
   random_hdr: true
   random_exposure_min: -1.0

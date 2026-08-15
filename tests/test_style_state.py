@@ -1,5 +1,6 @@
 import torch
 
+from raystyle.graph import AnchorGraph
 from raystyle.style_state import StyleState
 
 
@@ -36,6 +37,54 @@ def test_ours_trains_material_and_low_order_residual():
     assert state.texture_mapping == "triplanar"
     assert state.texture_field.logit_grid_raw.shape == (3, 3, 16, 16)
     assert state.texture_field.blend_weights.shape == (3, 3)
+
+
+def test_ours_graph_scope_covers_all_appearance_fields():
+    state = _state("ours")
+    assert state.graph_values().shape == (3, 20)
+    assert state.graph_values("appearance").shape == (3, 20)
+    assert state.graph_values("material").shape == (3, 2)
+
+
+def test_ours_appearance_graph_reaches_texture_material_and_sh():
+    state = _state("ours")
+    reference = torch.rand(3, 16, 16)
+    state.initialize_texture(reference, strength=1.0)
+    with torch.no_grad():
+        state.roughness_logits[:, 0].copy_(torch.tensor([-1.0, 0.0, 1.0]))
+        state.metallic_logits[:, 0].copy_(torch.tensor([-3.0, -1.0, 1.0]))
+        state.sh_residual[0].fill_(-0.5)
+        state.sh_residual[1].zero_()
+        state.sh_residual[2].fill_(0.5)
+    graph = AnchorGraph.from_points(
+        state.texture_field.plane_center[None]
+        + torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]),
+        target_anchors=3,
+        neighbours=2,
+    )
+    loss = graph.regularize(state.graph_values("appearance"))
+    loss.backward()
+    for parameter in (
+        state.texture_field.logit_grid_raw,
+        state.roughness_logits,
+        state.metallic_logits,
+        state.sh_residual,
+    ):
+        assert parameter.grad is not None
+        assert torch.count_nonzero(parameter.grad) > 0
+
+
+def test_material_graph_scope_excludes_texture_and_sh():
+    state = _state("ours")
+    with torch.no_grad():
+        state.roughness_logits[:, 0].copy_(torch.tensor([-1.0, 0.0, 1.0]))
+        state.metallic_logits[:, 0].copy_(torch.tensor([-3.0, -1.0, 1.0]))
+    values = state.graph_values("material")
+    values.sum().backward()
+    assert state.texture_field.logit_grid_raw.grad is None
+    assert state.sh_residual.grad is None
+    assert state.roughness_logits.grad is not None
+    assert state.metallic_logits.grad is not None
 
 
 def test_ours_texture_initialization_is_spatial_and_differentiable():

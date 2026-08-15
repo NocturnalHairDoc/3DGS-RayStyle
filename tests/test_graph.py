@@ -19,3 +19,19 @@ def test_constant_field_has_zero_graph_loss():
     loss = graph.regularize(torch.ones(20, 4))
     assert float(loss) < 1e-7
 
+
+def test_planar_graph_keeps_nonzero_edge_weights():
+    xyz = torch.tensor([
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [1.0, 1.0, 0.0],
+    ])
+    graph = AnchorGraph.from_points(xyz, target_anchors=4, neighbours=2)
+    assert graph.edges.numel() > 0
+    assert torch.all(graph.weights > 0)
+    values = xyz[:, :1].clone().requires_grad_()
+    loss = graph.regularize(values)
+    loss.backward()
+    assert float(loss.detach()) > 0
+    assert torch.count_nonzero(values.grad) > 0

@@ -43,7 +43,14 @@ class AnchorGraph:
         edges = np.asarray(sorted(pairs), dtype=np.int64).reshape(-1, 2)
         if len(edges):
             distance = np.linalg.norm(centers[edges[:, 0]] - centers[edges[:, 1]], axis=1)
-            weights = np.exp(-distance / max(voxel * 2.5, 1e-6)).astype(np.float32)
+            # A geometric-mean voxel estimate collapses for planar or linear
+            # segments because one or two bounding-box extents are near zero.
+            # Use the observed graph spacing as a lower bound so valid edges
+            # do not underflow to zero on roads and other thin surfaces.
+            positive = distance[distance > 0]
+            observed_spacing = float(np.median(positive)) if len(positive) else 0.0
+            weight_scale = max(voxel * 2.5, observed_spacing, 1e-6)
+            weights = np.exp(-distance / weight_scale).astype(np.float32)
         else:
             weights = np.empty(0, dtype=np.float32)
         return cls(
@@ -66,4 +73,3 @@ class AnchorGraph:
         means = sums / counts[:, None]
         delta = (means[edges[:, 0]] - means[edges[:, 1]]).abs().mean(1)
         return (delta * weights).sum() / weights.sum().clamp_min(1e-6)
-

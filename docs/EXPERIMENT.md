@@ -61,8 +61,16 @@ L = ws Lglobal + wpatch Lpatch + wc Lcontent + wg Lgraph + wo Loutside + wp Lpri
   exposure augmentation is not baked into intrinsic albedo.
 - `Lcontent`: masked cosine distance between frozen DINO features of the
   original and stylized render.
-- `Lgraph`: weighted L1 difference between material/style values aggregated on
-  neighbouring spatial anchors.
+- `Lgraph`: weighted L1 difference between appearance values aggregated on
+  neighbouring spatial anchors. With the default `train.graph_scope:
+  appearance`, Ours includes albedo, light-independent detail, roughness,
+  metallic, and the low-order SH residual. Each semantic group is normalized
+  to contribute equal dimensional weight before concatenation, so the 12-D SH
+  block does not dominate the scalar material fields merely because it is
+  wider. `train.graph_scope: material` retains the former Ours behavior and
+  regularizes only roughness and metallic. Edge bandwidth is lower-bounded by
+  observed anchor spacing so planar and linear segments retain nonzero graph
+  weights.
 - `Loutside`: RGB L1 outside the soft rendered segment mask.
 - `Lprior`: weak penalty on extreme roughness and unnecessary global colour
   correction. Replacement mode has no pull toward the old albedo.
@@ -118,6 +126,8 @@ claim.
 4. SH residual degree 0, 1, and 2.
 5. At least three segment sizes and three style types: painterly, material-like,
    and colour-dominant.
+6. Appearance graph vs material-only graph.
 
 Set `train.random_hdr: false` for ablation 2, set `losses.graph: 0` for
-ablation 3, and change `train.sh_degree` for ablation 4.
+ablation 3, change `train.sh_degree` for ablation 4, and set
+`train.graph_scope: material` for the material-only side of ablation 6.
