@@ -1,11 +1,16 @@
 # RayStyle for 3D Gaussian Splatting
 
-RayStyle is a research prototype for local style transfer on a pretrained 3D
-Gaussian Splatting scene. It changes the appearance of a selected segment while
-keeping Gaussian position, scale, rotation, and opacity fixed.
+RayStyle is a small side project spun out of
+[3DGS-RTMaterial](https://github.com/NocturnalHairDoc/3DGS-RTMaterial). It adds
+local style transfer to a pretrained 3D Gaussian Splatting scene by changing the
+appearance of a selected segment while keeping Gaussian position, scale,
+rotation, and opacity fixed. It does not use a diffusion model.
 
-The implementation is intended for experiments on view consistency and
-relighting. It does not use a diffusion model.
+## Demos
+
+| Bicycle road | Stump | Kitchen bulldozer |
+| :---: | :---: | :---: |
+| ![Starry Night style transferred to the road in the bicycle scene](docs/assets/demo_bicycle_road_starry.jpg) | ![Starry Night style transferred to the stump](docs/assets/demo_stump_starry.jpg) | ![Starry Night style transferred to the toy bulldozer](docs/assets/demo_kitchen_bulldozer_starry.jpg) |
 
 ## Method
 
@@ -56,9 +61,10 @@ training outputs are deliberately excluded from Git.
 - a compatible RTMaterial/SAGA checkout for scene loading and DINO utilities
 - an already trained Gaussian scene
 
-The project was developed alongside `3DGS-RTMaterial-clean-validation`. The
-path to that checkout is supplied through the experiment configuration; no
-upstream source is copied into this repository.
+The project uses scenes and renderer components from
+[3DGS-RTMaterial](https://github.com/NocturnalHairDoc/3DGS-RTMaterial). The path
+to a compatible checkout is supplied through the configuration; no upstream
+source is copied into this repository.
 
 ## Installation
 
@@ -207,4 +213,4 @@ appearance-graph ablation are reported in
 
 This repository does not redistribute the upstream 3DGS/SAGA implementation,
 datasets, or pretrained model weights. Their original licenses still apply.
-No separate license has been selected for this prototype yet.
+No separate license has been selected for this project yet.

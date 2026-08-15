@@ -1,4 +1,3 @@
-"""RayStyle MVP research code."""
+"""RayStyle MVP."""
 
 __version__ = "0.1.0"
-
