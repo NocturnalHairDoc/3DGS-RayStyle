@@ -61,6 +61,34 @@ class OrbitCamera:
         self.radius = 2.0
 
 
+@dataclass(frozen=True)
+class ViewerLayout:
+    render_width: int
+    render_height: int
+    control_width: int = 440
+    minimum_height: int = 950
+    panel_padding: int = 16
+    panel_gap: int = 10
+    render_header_height: int = 58
+
+    @property
+    def panel_height(self) -> int:
+        return max(self.minimum_height, self.render_height + self.render_header_height + 48)
+
+    @property
+    def main_width(self) -> int:
+        return self.render_width + 2 * self.panel_padding
+
+    @property
+    def viewport_width(self) -> int:
+        return self.main_width + self.panel_gap + self.control_width
+
+    @property
+    def render_top_spacer(self) -> int:
+        free = self.panel_height - self.render_header_height - self.render_height
+        return max(12, free // 2)
+
+
 class RayStyleViewerScene:
     """Checkpoint-backed renderer kept independent from DearPyGui."""
 
@@ -185,7 +213,8 @@ class RayStyleViewer:
         scale = max(float(scale), 1.0)
         self.width = max(320, int(source.image_width / scale))
         self.height = max(240, int(source.image_height / scale))
-        self.control_width = 370
+        self.layout = ViewerLayout(self.width, self.height)
+        self.control_width = self.layout.control_width
         self.camera_index = 0
         self.camera_mode = "Calibrated"
         self.orbit = OrbitCamera(
@@ -243,13 +272,23 @@ class RayStyleViewer:
 
     def _set_camera_mode(self, _sender, value):
         self.camera_mode = value
-        enabled = value == "Calibrated"
-        self.dpg.configure_item("_rs_camera_index", enabled=enabled)
+        calibrated = value == "Calibrated"
+        for tag in ("_rs_camera_index", "_rs_previous", "_rs_next"):
+            self.dpg.configure_item(tag, enabled=calibrated)
+        self.dpg.configure_item("_rs_reset_orbit", enabled=not calibrated)
+        self.dpg.set_value(
+            "_rs_camera_hint",
+            (
+                "Evaluation cameras reproduce saved results."
+                if calibrated else
+                "Drag the render: left rotates, middle pans, wheel zooms."
+            ),
+        )
         self._dirty = True
 
     def _save_capture(self):
         save_image(self.capture_path, self.last_image)
-        self.dpg.set_value("_rs_status", f"Saved {self.capture_path}")
+        self.dpg.set_value("_rs_capture_status", f"Saved to\n{self.capture_path}")
 
     def _reset_orbit(self):
         self.orbit.reset()
@@ -257,58 +296,115 @@ class RayStyleViewer:
 
     def _build_gui(self):
         dpg = self.dpg
+        layout = self.layout
         dpg.create_context()
+        with dpg.theme() as viewer_theme:
+            with dpg.theme_component(dpg.mvAll):
+                dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 16, 16)
+                dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 10, 9)
+                dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 9, 6)
+                dpg.add_theme_style(dpg.mvStyleVar_ChildBorderSize, 1)
+        dpg.bind_theme(viewer_theme)
         with dpg.texture_registry(show=False):
             dpg.add_raw_texture(
                 self.width, self.height, self.render_buffer,
                 format=dpg.mvFormat_Float_rgb, tag="_rs_texture",
             )
-        with dpg.window(tag="_rs_main", width=self.width, height=self.height):
+        with dpg.window(
+            tag="_rs_main", width=layout.main_width, height=layout.panel_height,
+            pos=(0, 0),
+            no_title_bar=True, no_move=True, no_resize=True, no_collapse=True,
+        ):
+            dpg.add_text("RAYSTYLE RENDER")
+            dpg.add_text(
+                f"{self.width} × {self.height}  ·  hover the image to navigate",
+            )
+            dpg.add_separator()
+            dpg.add_spacer(height=layout.render_top_spacer)
             dpg.add_image("_rs_texture", tag="_rs_image")
         with dpg.window(
-            tag="_rs_controls", label="RayStyle Controls",
-            width=self.control_width, height=self.height, pos=(self.width + 8, 0),
+            tag="_rs_controls", width=self.control_width, height=layout.panel_height,
+            pos=(layout.main_width + layout.panel_gap, 0),
+            no_title_bar=True, no_move=True, no_resize=True, no_collapse=True,
         ):
-            dpg.add_text(f"Checkpoint iteration: {self.scene.iteration}")
-            dpg.add_text(f"Selected Gaussians: {self.scene.state.selected_count:,}")
-            dpg.add_separator()
-            dpg.add_combo(
-                self.MODES, default_value="Styled", label="View",
-                tag="_rs_mode", callback=self._mark_dirty,
-            )
-            dpg.add_combo(
-                ("Calibrated", "Free orbit"), default_value="Calibrated",
-                label="Camera", callback=self._set_camera_mode,
-            )
-            with dpg.group(horizontal=True):
-                dpg.add_button(label="Previous", callback=lambda: self._change_camera_index(-1))
-                dpg.add_button(label="Next", callback=lambda: self._change_camera_index(1))
-                dpg.add_button(label="Reset orbit", callback=self._reset_orbit)
-            dpg.add_slider_int(
-                min_value=0, max_value=len(self.scene.cameras) - 1,
-                default_value=0, label="Camera index", tag="_rs_camera_index",
-                callback=self._select_camera,
-            )
-            dpg.add_text(self.scene.camera_labels[0], tag="_rs_camera_label")
-            dpg.add_separator()
+            with dpg.child_window(height=82, border=True):
+                dpg.add_text("OVERVIEW")
+                dpg.add_text(
+                    f"Iteration {self.scene.iteration:,}    ·    "
+                    f"{self.scene.state.selected_count:,} selected Gaussians",
+                )
+
+            with dpg.child_window(height=102, border=True):
+                dpg.add_text("DISPLAY")
+                dpg.add_combo(
+                    self.MODES, default_value="Styled", width=-1,
+                    tag="_rs_mode", callback=self._mark_dirty,
+                )
+
+            with dpg.child_window(height=232, border=True):
+                dpg.add_text("CAMERA")
+                dpg.add_radio_button(
+                    ("Calibrated", "Free orbit"), default_value="Calibrated",
+                    horizontal=True, callback=self._set_camera_mode,
+                )
+                with dpg.group(horizontal=True):
+                    dpg.add_button(
+                        label="Previous", width=118, tag="_rs_previous",
+                        callback=lambda: self._change_camera_index(-1),
+                    )
+                    dpg.add_button(
+                        label="Next", width=118, tag="_rs_next",
+                        callback=lambda: self._change_camera_index(1),
+                    )
+                    dpg.add_button(
+                        label="Reset", width=118, tag="_rs_reset_orbit", enabled=False,
+                        callback=self._reset_orbit,
+                    )
+                dpg.add_text("Camera index")
+                dpg.add_slider_int(
+                    min_value=0, max_value=len(self.scene.cameras) - 1,
+                    default_value=0, width=-1, tag="_rs_camera_index",
+                    callback=self._select_camera,
+                )
+                dpg.add_text(self.scene.camera_labels[0], tag="_rs_camera_label")
+                dpg.add_text(
+                    "Evaluation cameras reproduce saved results.",
+                    tag="_rs_camera_hint", wrap=self.control_width - 54,
+                )
+
             environment_labels = tuple(self.scene.environment_choices)
-            dpg.add_combo(
-                environment_labels, default_value=environment_labels[1],
-                label="Environment", tag="_rs_environment", callback=self._mark_dirty,
-            )
-            dpg.add_slider_float(
-                min_value=0, max_value=360, default_value=0,
-                label="HDR yaw", tag="_rs_yaw", callback=self._mark_dirty,
-            )
-            dpg.add_slider_float(
-                min_value=-4, max_value=4, default_value=0,
-                label="Exposure", tag="_rs_exposure", callback=self._mark_dirty,
-            )
-            dpg.add_separator()
-            dpg.add_button(label="Save screenshot", width=-1, callback=self._save_capture)
-            dpg.add_text("", tag="_rs_status", wrap=self.control_width - 20)
-            dpg.add_separator()
-            dpg.add_text("Free orbit: left drag rotate, middle drag pan, wheel zoom", wrap=330)
+            with dpg.child_window(height=222, border=True):
+                dpg.add_text("LIGHTING")
+                dpg.add_text("Environment")
+                dpg.add_combo(
+                    environment_labels, default_value=environment_labels[1], width=-1,
+                    tag="_rs_environment", callback=self._mark_dirty,
+                )
+                dpg.add_text("HDR rotation")
+                dpg.add_slider_float(
+                    min_value=0, max_value=360, default_value=0, width=-1,
+                    format="%.0f°", tag="_rs_yaw", callback=self._mark_dirty,
+                )
+                dpg.add_text("Exposure")
+                dpg.add_slider_float(
+                    min_value=-4, max_value=4, default_value=0, width=-1,
+                    format="%+.2f EV", tag="_rs_exposure", callback=self._mark_dirty,
+                )
+
+            with dpg.child_window(height=130, border=True):
+                dpg.add_text("CAPTURE & STATUS")
+                dpg.add_button(
+                    label="Save screenshot", width=-1, callback=self._save_capture,
+                )
+                dpg.add_text("Waiting for first render…", tag="_rs_render_status")
+                dpg.add_text("", tag="_rs_capture_status", wrap=self.control_width - 54)
+
+            with dpg.child_window(height=70, border=True):
+                dpg.add_text("NAVIGATION")
+                dpg.add_text(
+                    "Free orbit: left drag rotate  ·  middle drag pan  ·  wheel zoom",
+                    wrap=self.control_width - 54,
+                )
 
         def start_drag(_sender, button):
             if not dpg.is_item_hovered("_rs_image") or self.camera_mode != "Free orbit":
@@ -347,8 +443,8 @@ class RayStyleViewer:
 
         dpg.create_viewport(
             title="RayStyle 3D Gaussian Viewer",
-            width=self.width + self.control_width + 18,
-            height=self.height + 40,
+            width=layout.viewport_width + 16,
+            height=layout.panel_height + 40,
             resizable=False,
         )
         dpg.setup_dearpygui()
@@ -368,7 +464,7 @@ class RayStyleViewer:
         dpg.set_value("_rs_texture", values)
         milliseconds = 1000 * (time.perf_counter() - started)
         dpg.set_value(
-            "_rs_status",
+            "_rs_render_status",
             f"{self.camera_mode} · {self.width}×{self.height} · {milliseconds:.1f} ms",
         )
         print(
@@ -387,7 +483,7 @@ class RayStyleViewer:
                         self._render_once()
                     except Exception as error:
                         print(f"[RayStyle Viewer] render failed: {error}", flush=True)
-                        dpg.set_value("_rs_status", f"Render failed: {error}")
+                        dpg.set_value("_rs_render_status", f"Render failed: {error}")
                         self._dirty = False
                 dpg.render_dearpygui_frame()
         finally:

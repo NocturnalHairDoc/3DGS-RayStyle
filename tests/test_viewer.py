@@ -1,6 +1,6 @@
 import numpy as np
 
-from raystyle.viewer import OrbitCamera
+from raystyle.viewer import OrbitCamera, ViewerLayout
 
 
 def test_orbit_camera_interactions_remain_finite():
@@ -23,3 +23,18 @@ def test_orbit_camera_reset():
     assert np.allclose(camera.center, 0)
     assert camera.radius == 2.0
     assert np.allclose(camera.rotation.as_matrix(), np.eye(3))
+
+
+def test_viewer_layout_keeps_controls_spacious_for_scaled_render():
+    layout = ViewerLayout(618, 411)
+    assert layout.control_width >= 420
+    assert layout.panel_height >= 950
+    assert layout.main_width > layout.render_width
+    assert layout.render_top_spacer > 100
+    assert layout.viewport_width == layout.main_width + layout.panel_gap + layout.control_width
+
+
+def test_viewer_layout_expands_for_large_render():
+    layout = ViewerLayout(1237, 822)
+    assert layout.panel_height > layout.render_height
+    assert layout.render_top_spacer >= 12
