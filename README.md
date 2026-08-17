@@ -18,6 +18,12 @@ rotation, and opacity fixed. It does not use a diffusion model.
 | :---: | :---: | :---: |
 | ![Cobblestone texture transferred to the road in the bicycle scene](docs/assets/demo_bicycle_road_cobblestone.png) | ![Blue and yellow checkerboard transferred to the road in the bicycle scene](docs/assets/demo_bicycle_road_checker.png) | ![Sunflower pattern transferred to the road in the bicycle scene](docs/assets/demo_bicycle_road_sunflower.png) |
 
+### Held-out HDR examples
+
+| Bicycle sunflowers · Atlas · unseen · view 24 | Stump Starry Night · Atlas · unseen · view 11 |
+| :---: | :---: |
+| ![Sunflower road under held-out lighting, Atlas unseen view 24](docs/assets/demo_bicycle_sunflowers_atlas_unseen_24.webp) | ![Starry Night stump under held-out lighting, Atlas unseen view 11](docs/assets/demo_stump_starry_atlas_unseen_11.webp) |
+
 ## Method
 
 For the selected Gaussians, RayStyle optimizes:
