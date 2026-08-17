@@ -12,6 +12,12 @@ rotation, and opacity fixed. It does not use a diffusion model.
 | :---: | :---: | :---: |
 | ![Starry Night style transferred to the road in the bicycle scene](docs/assets/demo_bicycle_road_starry.jpg) | ![Starry Night style transferred to the stump](docs/assets/demo_stump_starry.jpg) | ![Starry Night style transferred to the toy bulldozer](docs/assets/demo_kitchen_bulldozer_starry.jpg) |
 
+### Recent texture demos
+
+| Cobblestone road | Checkerboard road | Sunflower road |
+| :---: | :---: | :---: |
+| ![Cobblestone texture transferred to the road in the bicycle scene](docs/assets/demo_bicycle_road_cobblestone.png) | ![Blue and yellow checkerboard transferred to the road in the bicycle scene](docs/assets/demo_bicycle_road_checker.png) | ![Sunflower pattern transferred to the road in the bicycle scene](docs/assets/demo_bicycle_road_sunflower.png) |
+
 ## Method
 
 For the selected Gaussians, RayStyle optimizes:
