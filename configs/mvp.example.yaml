@@ -27,9 +27,22 @@ train:
   residual_limit: 0.08
   global_shift_limit: 0.7
   detail_residual_limit: 0.08
-  texture_resolution: 256   # resolution of each tri-planar chart
+  texture_resolution: 512   # packed atlas resolution (tri-planar uses this per plane)
   texture_logit_limit: 4.0
-  texture_mapping: triplanar
+  texture_mapping: atlas    # atlas | triplanar | planar
+  reference_layout: saliency_grid # full | saliency_grid | saliency_focus | saliency_tile | saliency_motifs
+  reference_saliency_patches: 4   # deterministic global/mid/fine crops
+  reference_focus_scale: 0.32     # crop size for saliency_focus/saliency_tile
+  reference_tile_count: 3         # repeats per axis for saliency_tile
+  reference_metric_tiles: true    # compensate planar world-space aspect ratio
+  style_patch_reference: original # original keeps paired methods comparable
+  atlas_charts: 8
+  atlas_neighbours: 8
+  atlas_padding: 4
+  atlas_feather: 0.15
+  atlas_uv_offset_limit: 0.03
+  atlas_source_layout: packed     # packed | developed | component | chart | projected
+  atlas_reference_repeat: 1       # explicit texture scale; 1 keeps the full reference
   texture_init_strength: 1.0
   texture_stage_iterations: 1200
   image_size: 224
@@ -40,6 +53,8 @@ train:
   graph_scope: appearance   # appearance | material (legacy roughness/metallic only)
   min_segment_coverage: 0.005 # reject views where the segment has too few style patches
   random_hdr: true
+  render_mode: pbr              # pbr, diffuse_only, or albedo
+  albedo_only_render: false     # Diagnostic mode: bypass PBR/HDR and render albedo directly
   random_exposure_min: -1.0
   random_exposure_max: 1.0
   pbr_diffuse_white: 1.0
@@ -52,12 +67,18 @@ losses:
   content: 0.5
   graph: 0.05
   outside: 10.0
+  boundary_outside: 5.0
   material_prior: 0.01
   hdr_consistency: 0.5       # same camera, two HDRs, normalized local structure
   texture_anchor: 0.2        # keep the learned field near the reference initialization
   texture_delta_tv: 0.05     # suppress sparse-view noise in texture updates
   color_mean: 2.0            # absolute RGB + Lab mean match on UV albedo
   render_color: 2.0          # post-PBR RGB + Lab mean match in segment ROI
+  uv_continuity: 0.01        # Atlas-only: smooth trainable UV corrections
+  uv_distortion: 0.02        # Atlas-only: retain local metric scale
+  chart_seam: 0.05           # Atlas-only: match appearance across chart boundaries
+  uv_foldover: 0.05          # Atlas-only: preserve local triangle orientation
+  uv_collision: 0.05         # Atlas-only: separate distant surfaces in UV
 
 evaluation:
   max_views: 12

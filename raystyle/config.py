@@ -17,12 +17,18 @@ class LossConfig:
     content: float = 0.5
     graph: float = 0.05
     outside: float = 10.0
+    boundary_outside: float = 5.0
     material_prior: float = 0.01
     hdr_consistency: float = 0.5
     texture_anchor: float = 0.2
     texture_delta_tv: float = 0.05
     color_mean: float = 2.0
     render_color: float = 2.0
+    uv_continuity: float = 0.01
+    uv_distortion: float = 0.02
+    chart_seam: float = 0.05
+    uv_foldover: float = 0.05
+    uv_collision: float = 0.05
 
 
 @dataclass
@@ -38,7 +44,20 @@ class TrainConfig:
     detail_residual_limit: float = 0.08
     texture_resolution: int = 256
     texture_logit_limit: float = 4.0
-    texture_mapping: str = "triplanar"
+    texture_mapping: str = "atlas"
+    reference_layout: str = "full"
+    reference_saliency_patches: int = 4
+    reference_focus_scale: float = 0.32
+    reference_tile_count: int = 3
+    reference_metric_tiles: bool = False
+    style_patch_reference: str = "layout"
+    atlas_charts: int = 8
+    atlas_neighbours: int = 8
+    atlas_padding: int = 4
+    atlas_feather: float = 0.15
+    atlas_uv_offset_limit: float = 0.03
+    atlas_source_layout: str = "packed"
+    atlas_reference_repeat: int = 1
     texture_init_strength: float = 0.6
     texture_stage_iterations: int = 1200
     image_size: int = 224
@@ -49,6 +68,8 @@ class TrainConfig:
     graph_scope: str = "appearance"
     min_segment_coverage: float = 0.005
     random_hdr: bool = True
+    render_mode: str = "pbr"
+    albedo_only_render: bool = False
     random_exposure_min: float = -1.0
     random_exposure_max: float = 1.0
     pbr_diffuse_white: float = 1.0
@@ -100,8 +121,43 @@ class ExperimentConfig:
             raise ValueError("train.texture_resolution must be at least 16")
         if self.train.texture_logit_limit <= 0:
             raise ValueError("train.texture_logit_limit must be positive")
-        if self.train.texture_mapping not in {"planar", "triplanar"}:
-            raise ValueError("train.texture_mapping must be 'planar' or 'triplanar'")
+        if self.train.texture_mapping not in {"planar", "triplanar", "atlas"}:
+            raise ValueError("train.texture_mapping must be 'planar', 'triplanar', or 'atlas'")
+        if self.train.reference_layout not in {
+            "full", "saliency_grid", "saliency_focus", "saliency_tile",
+            "saliency_motifs",
+        }:
+            raise ValueError(
+                "train.reference_layout must be 'full', 'saliency_grid', "
+                "'saliency_focus', 'saliency_tile', or 'saliency_motifs'"
+            )
+        if not 1 <= self.train.reference_saliency_patches <= 16:
+            raise ValueError("train.reference_saliency_patches must be in [1, 16]")
+        if not 0.15 <= self.train.reference_focus_scale <= 1.0:
+            raise ValueError("train.reference_focus_scale must be in [0.15, 1.0]")
+        if not 1 <= self.train.reference_tile_count <= 8:
+            raise ValueError("train.reference_tile_count must be in [1, 8]")
+        if self.train.style_patch_reference not in {"original", "layout"}:
+            raise ValueError(
+                "train.style_patch_reference must be 'original' or 'layout'"
+            )
+        if self.train.atlas_charts < 1 or self.train.atlas_neighbours < 1:
+            raise ValueError("atlas chart and neighbour counts must be positive")
+        if self.train.atlas_padding < 0:
+            raise ValueError("train.atlas_padding cannot be negative")
+        if not 0 <= self.train.atlas_feather <= 0.5:
+            raise ValueError("train.atlas_feather must be in [0, 0.5]")
+        if not 0 <= self.train.atlas_uv_offset_limit <= 0.25:
+            raise ValueError("train.atlas_uv_offset_limit must be in [0, 0.25]")
+        if self.train.atlas_source_layout not in {
+            "packed", "developed", "component", "chart", "projected",
+        }:
+            raise ValueError(
+                "train.atlas_source_layout must be 'packed', 'developed', "
+                "'component', 'chart', or 'projected'"
+            )
+        if not 1 <= self.train.atlas_reference_repeat <= 16:
+            raise ValueError("train.atlas_reference_repeat must be in [1, 16]")
         if self.train.global_shift_limit <= 0:
             raise ValueError("train.global_shift_limit must be positive")
         if self.train.detail_residual_limit < 0:
@@ -110,6 +166,10 @@ class ExperimentConfig:
             raise ValueError("train.texture_stage_iterations cannot be negative")
         if self.train.graph_scope not in {"appearance", "material"}:
             raise ValueError("train.graph_scope must be 'appearance' or 'material'")
+        if self.train.render_mode not in {"pbr", "diffuse_only", "albedo"}:
+            raise ValueError(
+                "train.render_mode must be 'pbr', 'diffuse_only', or 'albedo'"
+            )
         if self.train.pbr_diffuse_white <= 0:
             raise ValueError("train.pbr_diffuse_white must be positive")
         if self.train.pbr_white_point <= 0:
@@ -118,6 +178,8 @@ class ExperimentConfig:
             raise ValueError("train.min_segment_coverage must be in [0, 1)")
         if self.losses.patch_style < 0:
             raise ValueError("losses.patch_style cannot be negative")
+        if self.losses.outside < 0 or self.losses.boundary_outside < 0:
+            raise ValueError("outside preservation weights cannot be negative")
         if self.losses.hdr_consistency < 0:
             raise ValueError("losses.hdr_consistency cannot be negative")
         if self.losses.texture_anchor < 0 or self.losses.texture_delta_tv < 0:
@@ -126,6 +188,12 @@ class ExperimentConfig:
             raise ValueError("losses.color_mean cannot be negative")
         if self.losses.render_color < 0:
             raise ValueError("losses.render_color cannot be negative")
+        for name in (
+            "uv_continuity", "uv_distortion", "chart_seam", "uv_foldover",
+            "uv_collision",
+        ):
+            if getattr(self.losses, name) < 0:
+                raise ValueError(f"losses.{name} cannot be negative")
         if require_inputs:
             required = {
                 "legacy_root": self.legacy_root,

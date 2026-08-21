@@ -14,6 +14,12 @@ def _normalise(values: torch.Tensor):
     return F.normalize(values, dim=-1, eps=1e-7)
 
 
+def transform_points_row(points: torch.Tensor, transform: torch.Tensor):
+    """Apply a legacy 3DGS transform stored for row-vector multiplication."""
+    homogeneous = torch.cat((points, torch.ones_like(points[:, :1])), dim=1)
+    return homogeneous @ transform
+
+
 def calibrated_tone_map(
     values: torch.Tensor, exposure_stops: float = 0.0, white_point: float = 1.0,
 ):
@@ -113,6 +119,60 @@ class LegacyGaussianBackend:
     def render_original(self, camera):
         return self._render(camera, self.gaussians, self.pipeline, self.background)["render"].clamp(0, 1)
 
+    def projected_visible_samples(
+        self, camera, visibility_ids: torch.Tensor, sample_ids: torch.Tensor,
+        mask: torch.Tensor,
+    ):
+        """Project a shared Gaussian subset and retain approximate frontmost samples."""
+        height, width = int(camera.image_height), int(camera.image_width)
+        projection = camera.full_proj_transform.to(self.xyz.device, dtype=self.xyz.dtype)
+
+        def project(ids):
+            xyz = self.xyz[ids]
+            clip = transform_points_row(xyz, projection)
+            depth = clip[:, 3]
+            safe = depth.unsqueeze(1).clamp_min(1e-6)
+            ndc = clip[:, :3] / safe
+            u = ((ndc[:, 0] + 1) * 0.5 * (width - 1)).long().clamp(0, width - 1)
+            v = ((1 - ndc[:, 1]) * 0.5 * (height - 1)).long().clamp(0, height - 1)
+            valid = (
+                (depth > 1e-6) & (ndc[:, 2] > 0)
+                & (ndc[:, 0].abs() <= 1) & (ndc[:, 1].abs() <= 1)
+            )
+            return u, v, depth, ndc, valid
+
+        all_u, all_v, all_depth, _, all_valid = project(visibility_ids)
+        nearest = torch.full(
+            (height * width,), torch.inf,
+            dtype=all_depth.dtype, device=all_depth.device,
+        )
+        all_pixels = all_v[all_valid] * width + all_u[all_valid]
+        nearest.scatter_reduce_(
+            0, all_pixels, all_depth[all_valid], reduce="amin", include_self=True,
+        )
+
+        u, v, depth, ndc, valid = project(sample_ids)
+        pixels = v * width + u
+        front = nearest[pixels]
+        tolerance = torch.maximum(front.abs() * 0.01, torch.full_like(front, 1e-4))
+        valid &= depth <= front + tolerance
+        support = mask[0] if mask.ndim == 3 else mask[0, 0]
+        valid &= support[v, u] > 0.15
+        ids = sample_ids[valid]
+        # grid_sample uses image coordinates, whose vertical axis is -NDC y.
+        grid = torch.stack((ndc[valid, 0], -ndc[valid, 1]), dim=1)
+        return ids, grid
+
+    @staticmethod
+    def sample_projected_features(features: torch.Tensor, grid: torch.Tensor):
+        if not len(grid):
+            return features.new_empty((0, features.shape[1]))
+        sampled = F.grid_sample(
+            features, grid.view(1, -1, 1, 2), mode="bilinear",
+            padding_mode="border", align_corners=True,
+        )
+        return sampled[0, :, :, 0].T
+
     def directions(self, camera, ids: torch.Tensor | None = None):
         center = camera.camera_center.reshape(1, 3)
         xyz = self.gaussians.get_xyz.detach()
@@ -158,7 +218,11 @@ class LegacyGaussianBackend:
         directions = self.directions(camera, state.selected_ids)
         return self._eval_sh(degree, coefficients, directions)
 
-    def render_stylized(self, camera, state, environment: EnvironmentMap):
+    def render_stylized(
+        self, camera, state, environment: EnvironmentMap, render_mode: str = "pbr",
+    ):
+        if render_mode not in {"pbr", "diffuse_only"}:
+            raise ValueError("render_mode must be 'pbr' or 'diffuse_only'")
         original = self.render_original(camera)
         if state.method in {"dc", "full_sh"}:
             colors = self.native_radiance(camera)
@@ -194,10 +258,13 @@ class LegacyGaussianBackend:
         )
         specular_light = env.sample(reflected, roughness)
         ndotv = (normals * view).sum(-1, keepdim=True).clamp(0, 1)
-        f0 = 0.04 * (1 - metallic) + albedo * metallic
-        fresnel = f0 + (1 - f0) * (1 - ndotv).pow(5)
-        surface = diffuse_light * albedo * (1 - metallic) * (1 - fresnel)
-        surface = surface + specular_light * fresnel
+        if render_mode == "diffuse_only":
+            surface = diffuse_light * albedo
+        else:
+            f0 = 0.04 * (1 - metallic) + albedo * metallic
+            fresnel = f0 + (1 - f0) * (1 - ndotv).pow(5)
+            surface = diffuse_light * albedo * (1 - metallic) * (1 - fresnel)
+            surface = surface + specular_light * fresnel
         surface = calibrated_tone_map(
             surface, state.pbr_exposure, state.pbr_white_point,
         )
@@ -216,3 +283,12 @@ class LegacyGaussianBackend:
         mask_hwc = mask.permute(1, 2, 0)
         result = original.permute(1, 2, 0) * (1 - mask_hwc) + surface * mask_hwc
         return result.permute(2, 0, 1).clamp(0, 1)
+
+    def render_albedo(self, camera, state):
+        """Composite selected albedo directly, bypassing PBR and SH for UV diagnostics."""
+        original = self.render_original(camera)
+        mask = self.segment_mask(camera, state.selected_ids)
+        albedo = self._sparse_map(
+            camera, state.selected_ids, state.selected_albedo(), mask.permute(1, 2, 0),
+        ).clamp(0, 1).permute(2, 0, 1)
+        return original * (1 - mask) + albedo * mask

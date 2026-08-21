@@ -6,6 +6,7 @@ from pathlib import Path
 import torch
 from tqdm import trange
 
+from .atlas import AtlasTopology
 from .backend import LegacyGaussianBackend
 from .config import ExperimentConfig
 from .environments import EnvironmentPool
@@ -13,9 +14,11 @@ from .features import FrozenDINO, dino_content_loss
 from .graph import AnchorGraph
 from .io_utils import append_jsonl, load_image, save_image, seed_everything, write_json
 from .losses import (
-    ReferenceStyleLoss, illumination_consistency_loss, outside_preservation_loss,
+    ReferenceStyleLoss, boundary_outside_preservation_loss,
+    illumination_consistency_loss, outside_preservation_loss,
 )
 from .project_state import load_segment
+from .reference_layout import build_reference_layout, metric_tile_grid
 from .style_state import StyleState
 
 
@@ -38,6 +41,16 @@ class Trainer:
         selected_ids = torch.where(self.selected)[0]
         self.state_metadata = state_metadata
         self.reference = load_image(config.reference_image)
+        resume_payload = None
+        if resume_checkpoint:
+            resume_payload = torch.load(
+                resume_checkpoint, map_location="cuda", weights_only=False,
+            )
+        atlas_topology = (
+            AtlasTopology.from_checkpoint_state(resume_payload["state_dict"])
+            if resume_payload is not None and config.train.texture_mapping == "atlas"
+            else None
+        )
         self.state = StyleState(
             self.backend.base_albedo, self.selected, config.method,
             original_sh_degree=int(self.backend.gaussians.active_sh_degree),
@@ -50,23 +63,82 @@ class Trainer:
                 self.backend.canonical_normals(selected_ids)
                 if config.method == "ours" else None
             ),
+            selected_visibility=(
+                self.backend.gaussians.get_opacity.detach()[self.selected]
+                if config.method == "ours" else None
+            ),
             texture_resolution=config.train.texture_resolution,
             texture_logit_limit=config.train.texture_logit_limit,
             texture_mapping=config.train.texture_mapping,
+            atlas_charts=config.train.atlas_charts,
+            atlas_neighbours=config.train.atlas_neighbours,
+            atlas_padding=config.train.atlas_padding,
+            atlas_feather=config.train.atlas_feather,
+            atlas_uv_offset_limit=config.train.atlas_uv_offset_limit,
+            atlas_source_layout=config.train.atlas_source_layout,
+            atlas_reference_repeat=config.train.atlas_reference_repeat,
+            atlas_topology=atlas_topology,
             albedo_mode=config.train.albedo_mode,
             pbr_diffuse_white=config.train.pbr_diffuse_white,
             pbr_exposure=config.train.pbr_exposure,
             pbr_white_point=config.train.pbr_white_point,
         ).cuda()
-        self.state.initialize_texture(self.reference, config.train.texture_init_strength)
+        tile_grid = None
+        if config.train.reference_metric_tiles:
+            tile_grid = metric_tile_grid(
+                self.state.texture_field,
+                self.backend.xyz[self.selected],
+                config.train.reference_tile_count,
+            )
+        self.reference_layout = build_reference_layout(
+            self.reference,
+            mode=config.train.reference_layout,
+            patch_count=config.train.reference_saliency_patches,
+            canvas_size=config.train.texture_resolution,
+            focus_scale=config.train.reference_focus_scale,
+            tile_count=config.train.reference_tile_count,
+            tile_grid=tile_grid,
+        )
+        save_image(self.output / "reference_canvas.png", self.reference_layout.canvas)
+        save_image(
+            self.output / "reference_saliency.png",
+            self.reference_layout.saliency.expand(3, -1, -1),
+        )
+        save_image(
+            self.output / "reference_selection.png",
+            self.reference_layout.selection_preview,
+        )
+        write_json(self.output / "reference_layout.json", {
+            "mode": config.train.reference_layout,
+            "regions": [list(region) for region in self.reference_layout.regions],
+            "scales": list(self.reference_layout.scales),
+            "tile_grid": list(self.reference_layout.tile_grid),
+        })
+        texture_reference = (
+            self.reference_layout.canvas
+            if config.train.texture_mapping == "atlas"
+            else self.reference
+        )
+        self.state.initialize_texture(texture_reference, config.train.texture_init_strength)
         self.graph = AnchorGraph.from_points(
             self.backend.xyz[self.selected], config.train.graph_anchors,
             config.train.graph_neighbours,
         )
         self.dino = FrozenDINO(config.legacy_root, config.dino_checkpoint, config.train.image_size).cuda()
+        patch_reference = (
+            self.reference_layout.canvas
+            if config.train.style_patch_reference == "layout"
+            else self.reference
+        )
         with torch.no_grad():
             reference_features = self.dino(self.reference)
-        self.style_loss = ReferenceStyleLoss(reference_features, self.reference)
+            patch_reference_features = self.dino(patch_reference)
+        self.style_loss = ReferenceStyleLoss(
+            reference_features,
+            self.reference,
+            patch_dino_features=patch_reference_features,
+            patch_reference_rgb=patch_reference,
+        )
         self.environments = EnvironmentPool(config.environment_dir, config.train.seed)
         parameters = [p for p in self.state.parameters() if p.requires_grad and p.numel()]
         if not parameters:
@@ -76,6 +148,8 @@ class Trainer:
                 self.state.global_albedo_shift,
                 self.state.texture_field.logit_grid_raw,
             ]
+            if hasattr(self.state.texture_field, "uv_offset_raw"):
+                texture_parameters.append(self.state.texture_field.uv_offset_raw)
             texture_ids = {id(parameter) for parameter in texture_parameters}
             material_parameters = [
                 parameter for parameter in parameters if id(parameter) not in texture_ids
@@ -89,9 +163,7 @@ class Trainer:
             self.optimizer = torch.optim.Adam(parameters, lr=config.train.learning_rate)
         self.start_iteration = 0
         if resume_checkpoint:
-            payload = torch.load(
-                resume_checkpoint, map_location="cuda", weights_only=False,
-            )
+            payload = resume_payload
             saved_method = payload.get("state_metadata", {}).get("method")
             if saved_method and saved_method != config.method:
                 raise ValueError(
@@ -136,18 +208,27 @@ class Trainer:
                 best = (coverage, camera)
         return best[1] if best is not None else self.backend.train_cameras[0]
 
+    def _render(self, camera, environment):
+        render_mode = (
+            "albedo" if self.config.train.albedo_only_render
+            else self.config.train.render_mode
+        )
+        if render_mode == "albedo":
+            return self.backend.render_albedo(camera, self.state)
+        return self.backend.render_stylized(
+            camera, self.state, environment, render_mode=render_mode,
+        )
+
     @torch.no_grad()
     def _save_fixed_previews(self, iteration: int):
         camera = self.preview_camera
-        fixed = self.backend.render_stylized(
-            camera, self.state, self.environments.fixed,
-        )
+        fixed = self._render(camera, self.environments.fixed)
         save_image(
             self.output / "previews_fixed" / f"{iteration:06d}_fixed.png", fixed,
         )
         for index, source in enumerate(self.environments.heldout[:2]):
             environment = type(source)(source.name, source.pixels, 0.0, 0.0)
-            image = self.backend.render_stylized(camera, self.state, environment)
+            image = self._render(camera, environment)
             save_image(
                 self.output / "previews_fixed" /
                 f"{iteration:06d}_unseen_{index + 1}.png",
@@ -223,10 +304,11 @@ class Trainer:
             with torch.no_grad():
                 original = self.backend.render_original(camera)
                 original_features = self.dino(original)
-            stylized = self.backend.render_stylized(camera, self.state, environment)
+            stylized = self._render(camera, environment)
             stylized_features = self.dino(stylized)
 
             texture_anchor, texture_delta_tv = self.state.texture_regularization()
+            atlas_terms = self.state.atlas_regularization()
             texture_preview = self.state.texture_preview()
             color_mean = (
                 self.style_loss.color_mean_loss(texture_preview)
@@ -242,6 +324,9 @@ class Trainer:
                     self.state.graph_values(cfg.graph_scope),
                 ),
                 "outside": outside_preservation_loss(stylized, original, mask),
+                "boundary_outside": boundary_outside_preservation_loss(
+                    stylized, original, mask,
+                ),
                 "material_prior": self.state.material_prior(),
                 "texture_anchor": texture_anchor,
                 "texture_delta_tv": texture_delta_tv,
@@ -249,6 +334,7 @@ class Trainer:
                 "render_color": self.style_loss.rendered_color_loss(
                     stylized, mask, environment.exposure,
                 ),
+                **atlas_terms,
             }
             primary_total = sum(
                 getattr(weights, name) * value for name, value in terms.items()
@@ -265,9 +351,7 @@ class Trainer:
                     self._sample_different_environment(environment)
                     if cfg.random_hdr else self.environments.neutral
                 )
-                second_stylized = self.backend.render_stylized(
-                    camera, self.state, second_environment,
-                )
+                second_stylized = self._render(camera, second_environment)
                 hdr_consistency = illumination_consistency_loss(
                     stylized.detach(), second_stylized, mask,
                 )
@@ -299,6 +383,10 @@ class Trainer:
                 "stage": "texture" if texture_stage else "material_hdr",
                 "seconds": time.perf_counter() - started,
             }
+            record.update({
+                f"atlas_{name}": float(value.detach())
+                for name, value in self.state.atlas_diagnostics().items()
+            })
             append_jsonl(log_path, record)
             progress.set_postfix(loss=f"{record['total']:.4f}")
 

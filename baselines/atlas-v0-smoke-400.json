@@ -1,0 +1,27 @@
+{
+  "tag": "atlas-v0-smoke-400",
+  "status": "failed_acceptance_gates",
+  "created": "2026-08-15",
+  "output_directory": "outputs/atlas_smoke_400_20260815",
+  "iterations": 400,
+  "texture_stage_iterations": 150,
+  "seed": 42,
+  "source_fingerprint": "b76ab76bf4e25991862097c3ec04034e826275e0c21a4390bc4ed5d54eaf1c45",
+  "checkpoints": {
+    "bicycle_starry/atlas": "e2a38722ef135b188eca6642df7b5f2093647221e314805f15573a0e4d59f857",
+    "bicycle_starry/triplanar": "a7f16098768f1f45afa7c413ed578aeaed09f604e020242fe790ae057c35d4f7",
+    "bicycle_sunflowers/atlas": "29bc59fb53ccf6559aaec24f472b3668ea240385ded8c54b7cdb54c16209b6c7",
+    "bicycle_sunflowers/triplanar": "2a7ddf3512333e32c4e1bbd9b1e07b059557256c63862de2c3fd5878e0ce52da",
+    "stump_starry/atlas": "df36766a7a8b348d738a694eb8d7b9bdff908c714292116d3643ed790aa9b7cb",
+    "stump_starry/triplanar": "154a9a71150f2ecdc737f7fcfdc59c9e3ac80d091851e09bd13022c4752e0b13",
+    "bulldozer_starry/atlas": "10835976716c35577ebcbbcc5e80890313dbd81ee14da7a7e897ff4220979612",
+    "bulldozer_starry/triplanar": "5c60c6650e738793668f54dd49a7b4e23c78e9a3432e44ece815cac59ed2159a"
+  },
+  "artifacts": {
+    "atlas_vs_triplanar.csv": "71d82ba0cc00e408e252e82bff5cee2c608ee2273200ec4e18e2550546a9d4fa",
+    "fixed_view_comparison.jpg": "a5ff4921ddd911a438999dcf82ca617ed82f1faeac50f33d5df58c1fbb8abf77",
+    "unseen_view_comparison.jpg": "485dbf6c20a7ec9da6e3cbd92a54e61c2feeead16535b21844b52c0374516a47",
+    "atlas_debug_comparison.jpg": "ba88132d2224108b817eec71660defb0659709765b08c9aba4b8436ce3be1e08"
+  },
+  "decision": "Do not run 2000 iterations; fix chart partition, UV collisions, and seams first."
+}

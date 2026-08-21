@@ -1,0 +1,8 @@
+version: 1
+segments:
+  - name: road-left
+    config: ../outputs/road_left/resolved_config.json
+    checkpoint: ../outputs/road_left/checkpoint_latest.pt
+  - name: road-right
+    config: ../outputs/road_right/resolved_config.json
+    checkpoint: ../outputs/road_right/checkpoint_latest.pt

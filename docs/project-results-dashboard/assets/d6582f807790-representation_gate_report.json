@@ -1,0 +1,101 @@
+{
+  "atlas_version": 12,
+  "iterations": 150,
+  "source_fingerprint": "02df26cf739e0bbb0589fd72d9b3b89bb72caeae2c6d15452da30051df8f5faf",
+  "automatic_gates_pass": true,
+  "visual_gates_pass": true,
+  "validation_pass": true,
+  "visual_review_required": [
+    "synthetic motif remains recognizable in at least three views",
+    "no obvious chart seam or abrupt orientation change"
+  ],
+  "cases": [
+    {
+      "case": "thin_checker",
+      "passed": true,
+      "gates": {
+        "finite_metrics": true,
+        "intra_chart_collision_le_2pct": true,
+        "zero_inter_chart_overlap": true,
+        "foldover_le_0_5pct": true,
+        "padding_violation_le_2pct": true,
+        "positive_atlas_occupancy": true,
+        "positive_gradient_retention": true,
+        "normalized_seam_not_increased": true
+      }
+    },
+    {
+      "case": "thin_orientation",
+      "passed": true,
+      "gates": {
+        "finite_metrics": true,
+        "intra_chart_collision_le_2pct": true,
+        "zero_inter_chart_overlap": true,
+        "foldover_le_0_5pct": true,
+        "padding_violation_le_2pct": true,
+        "positive_atlas_occupancy": true,
+        "positive_gradient_retention": true,
+        "normalized_seam_not_increased": true
+      }
+    },
+    {
+      "case": "nonplanar_checker",
+      "passed": true,
+      "gates": {
+        "finite_metrics": true,
+        "intra_chart_collision_le_2pct": true,
+        "zero_inter_chart_overlap": true,
+        "foldover_le_0_5pct": true,
+        "padding_violation_le_2pct": true,
+        "positive_atlas_occupancy": true,
+        "positive_gradient_retention": true,
+        "normalized_seam_not_increased": true
+      }
+    },
+    {
+      "case": "nonplanar_orientation",
+      "passed": true,
+      "gates": {
+        "finite_metrics": true,
+        "intra_chart_collision_le_2pct": true,
+        "zero_inter_chart_overlap": true,
+        "foldover_le_0_5pct": true,
+        "padding_violation_le_2pct": true,
+        "positive_atlas_occupancy": true,
+        "positive_gradient_retention": true,
+        "normalized_seam_not_increased": true
+      }
+    }
+  ],
+  "visual_review": {
+    "passed": true,
+    "reviewed_at": "2026-08-16",
+    "criteria": [
+      "synthetic motif remains recognizable in at least three views",
+      "no obvious chart seam or abrupt orientation change"
+    ],
+    "cases": {
+      "thin_checker": {
+        "passed": true,
+        "note": "The checker remains ordered and recognizable in all views where the narrow band has sufficient screen coverage."
+      },
+      "thin_orientation": {
+        "passed": true,
+        "note": "Arrow direction is readable in more than three visible close views and remains aligned along the band."
+      },
+      "nonplanar_checker": {
+        "passed": true,
+        "note": "The checker follows the stump surface across all eight views without a rectangular chart seam."
+      },
+      "nonplanar_orientation": {
+        "passed": true,
+        "note": "Arrow motifs remain recognizable across the curved surface; their screen rotation follows surface orientation rather than a view-dependent flip."
+      }
+    },
+    "limitations": [
+      "The thin segment is sub-pixel or occluded in several distant views.",
+      "Thin-band source texel density remains uneven and should be reported separately from motif recognizability."
+    ],
+    "note": "v2 replaces the disconnected road-normal outlier mask with the continuous Stump segment for the non-planar test and uses a larger physical motif scale for the thin band."
+  }
+}

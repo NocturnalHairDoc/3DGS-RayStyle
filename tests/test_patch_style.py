@@ -1,6 +1,39 @@
 import torch
 
-from raystyle.losses import ReferenceStyleLoss, illumination_consistency_loss, srgb_to_lab
+from raystyle.features import (
+    adjacent_patch_distance, corresponded_patch_distance, masked_patch_tokens,
+)
+from raystyle.losses import (
+    ReferenceStyleLoss, _nearest_patch_loss, boundary_outside_preservation_loss,
+    illumination_consistency_loss, masked_gradient_retention,
+    masked_lab_mean_distance, srgb_to_lab,
+)
+
+
+def test_adjacent_view_patch_metric_is_symmetric_and_identity_is_zero():
+    features = torch.nn.functional.normalize(torch.randn(1, 8, 4, 4), dim=1)
+    mask = torch.ones(1, 4, 4)
+    tokens = masked_patch_tokens(features, mask, maximum=8)
+    assert len(tokens) == 8
+    assert float(adjacent_patch_distance(tokens, tokens)) < 1e-6
+    other = torch.nn.functional.normalize(torch.randn_like(tokens), dim=1)
+    assert torch.allclose(
+        adjacent_patch_distance(tokens, other),
+        adjacent_patch_distance(other, tokens),
+    )
+
+
+def test_corresponded_patch_metric_uses_only_shared_sorted_gaussian_ids():
+    first_ids = torch.tensor([1, 4, 7, 9])
+    second_ids = torch.tensor([2, 4, 7, 11])
+    first = torch.eye(4)
+    second = torch.stack((torch.ones(4), first[1], first[2], -torch.ones(4)))
+    distance = corresponded_patch_distance(first_ids, first, second_ids, second)
+    assert distance is not None
+    assert float(distance) < 1e-6
+    assert corresponded_patch_distance(
+        torch.tensor([1]), first[:1], torch.tensor([2]), second[:1],
+    ) is None
 
 
 def test_multiscale_patch_loss_is_finite_and_backpropagates():
@@ -21,6 +54,16 @@ def test_multiscale_patch_loss_is_finite_and_backpropagates():
     assert features.grad is not None and torch.isfinite(features.grad).all()
     assert float(image.grad.abs().sum()) > 0
     assert float(features.grad.abs().sum()) > 0
+
+
+def test_patch_matching_penalizes_missing_reference_modes():
+    reference = torch.eye(3)
+    query_one_mode = reference[:1].repeat(3, 1)
+    query_all_modes = reference
+    incomplete = _nearest_patch_loss(query_one_mode, reference)
+    complete = _nearest_patch_loss(query_all_modes, reference)
+    assert complete < 1e-6
+    assert incomplete > 0.2
 
 
 def test_hdr_consistency_ignores_global_exposure_but_detects_structure_change():
@@ -113,3 +156,43 @@ def test_srgb_to_lab_is_finite_and_differentiable():
     assert lab.shape == image.shape
     assert torch.isfinite(lab).all()
     assert image.grad is not None and torch.isfinite(image.grad).all()
+
+
+def test_boundary_outside_loss_ignores_far_background_and_penalizes_edge_leak():
+    original = torch.zeros(1, 3, 64, 64)
+    mask = torch.zeros(1, 1, 64, 64)
+    mask[..., 24:40, 24:40] = 1
+    far = original.clone()
+    far[..., :5, :5] = 1
+    near = original.clone().requires_grad_()
+    with torch.no_grad():
+        near[..., 20:24, 24:40] = 1
+    far_loss = boundary_outside_preservation_loss(far, original, mask, radius=6)
+    near_loss = boundary_outside_preservation_loss(near, original, mask, radius=6)
+    near_loss.backward()
+    assert far_loss == 0
+    assert near_loss > 0.05
+    assert near.grad is not None and near.grad[..., 20:24, 24:40].abs().sum() > 0
+
+
+def test_screen_gradient_retention_is_one_for_identity_and_drops_when_blurred():
+    image = torch.zeros(1, 3, 32, 32)
+    image[..., ::4, :] = 1
+    mask = torch.ones(1, 1, 32, 32)
+    identity = masked_gradient_retention(image, image, mask)
+    blurred = torch.nn.functional.avg_pool2d(image, 5, stride=1, padding=2)
+    softened = masked_gradient_retention(blurred, image, mask)
+    assert torch.allclose(identity, torch.ones_like(identity), atol=1e-6)
+    assert softened < 0.5
+
+
+def test_masked_lab_mean_distance_tracks_only_visible_colour_shift():
+    reference = torch.full((1, 3, 16, 16), 0.4)
+    mask = torch.zeros(1, 1, 16, 16)
+    mask[..., 4:12, 4:12] = 1
+    outside_only = reference.clone()
+    outside_only[..., :4, :] = 1
+    shifted = reference.clone()
+    shifted[..., 4:12, 4:12] = torch.tensor([0.8, 0.2, 0.1]).view(1, 3, 1, 1)
+    assert masked_lab_mean_distance(outside_only, reference, mask) < 1e-7
+    assert masked_lab_mean_distance(shifted, reference, mask) > 0.05

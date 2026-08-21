@@ -3,8 +3,9 @@ from __future__ import annotations
 import torch
 from torch import nn
 
+from .atlas import AtlasTopology
 from .config import METHODS
-from .texture_field import PlanarTextureField, TriPlanarTextureField
+from .texture_field import AtlasTextureField, PlanarTextureField, TriPlanarTextureField
 
 
 def _logit(values: torch.Tensor) -> torch.Tensor:
@@ -27,9 +28,18 @@ class StyleState(nn.Module):
         detail_residual_limit: float = 0.08,
         selected_xyz: torch.Tensor | None = None,
         selected_normals: torch.Tensor | None = None,
+        selected_visibility: torch.Tensor | None = None,
         texture_resolution: int = 256,
         texture_logit_limit: float = 4.0,
         texture_mapping: str = "triplanar",
+        atlas_charts: int = 8,
+        atlas_neighbours: int = 8,
+        atlas_padding: int = 4,
+        atlas_feather: float = 0.15,
+        atlas_uv_offset_limit: float = 0.03,
+        atlas_source_layout: str = "packed",
+        atlas_reference_repeat: int = 1,
+        atlas_topology: AtlasTopology | None = None,
         albedo_mode: str = "replacement",
         pbr_diffuse_white: float = 1.0,
         pbr_exposure: float = 0.0,
@@ -45,7 +55,7 @@ class StyleState(nn.Module):
         self.residual_limit = float(residual_limit)
         self.global_shift_limit = float(global_shift_limit)
         self.detail_residual_limit = float(detail_residual_limit)
-        if texture_mapping not in {"planar", "triplanar"}:
+        if texture_mapping not in {"planar", "triplanar", "atlas"}:
             raise ValueError(f"unknown texture mapping {texture_mapping!r}")
         self.texture_mapping = texture_mapping
         self.pbr_diffuse_white = float(pbr_diffuse_white)
@@ -56,6 +66,15 @@ class StyleState(nn.Module):
         self.albedo_mode = albedo_mode
         self.register_buffer("selected_ids", ids)
         self.register_buffer("base_albedo", base_albedo.detach().clone())
+        if selected_visibility is None:
+            selected_visibility = torch.ones(len(ids), device=base_albedo.device)
+        if selected_visibility.numel() != len(ids):
+            raise ValueError("selected_visibility must contain one value per selected Gaussian")
+        self.register_buffer(
+            "selected_visibility",
+            selected_visibility.detach().flatten().to(base_albedo.device).clamp(0, 1),
+            persistent=False,
+        )
         selected_base = base_albedo[ids].detach().clamp(1e-4, 1 - 1e-4)
         self.albedo_logits = nn.Parameter(_logit(selected_base))
         self.global_albedo_shift = nn.Parameter(torch.zeros(1, 3, device=base_albedo.device))
@@ -76,7 +95,14 @@ class StyleState(nn.Module):
         if method == "ours":
             if selected_xyz is None:
                 raise ValueError("ours requires selected_xyz for the planar texture field")
-            if texture_mapping == "triplanar":
+            if texture_mapping == "atlas":
+                self.texture_field = AtlasTextureField(
+                    selected_xyz, selected_normals, texture_resolution,
+                    texture_logit_limit, atlas_neighbours, atlas_charts,
+                    atlas_padding, atlas_feather, atlas_uv_offset_limit,
+                    atlas_source_layout, atlas_reference_repeat, atlas_topology,
+                )
+            elif texture_mapping == "triplanar":
                 self.texture_field = TriPlanarTextureField(
                     selected_xyz, selected_normals, texture_resolution,
                     texture_logit_limit,
@@ -178,6 +204,82 @@ class StyleState(nn.Module):
             return zero, zero
         return self.texture_field.delta_regularization()
 
+    def atlas_regularization(self):
+        if not isinstance(self.texture_field, AtlasTextureField):
+            zero = self.albedo_logits.sum() * 0
+            return {
+                name: zero for name in (
+                    "uv_continuity", "uv_distortion", "chart_seam",
+                    "uv_foldover", "uv_collision",
+                )
+            }
+        losses = self.texture_field.geometric_losses()
+        seam = self._weighted_seam_statistics()
+        if seam is not None:
+            losses["chart_seam"] = seam["excess"]
+        return losses
+
+    def _weighted_seam_statistics(self, albedo: torch.Tensor | None = None):
+        """Measure boundary jumps relative to the local surface gradient.
+
+        A raw colour difference across a chart boundary is not necessarily a
+        seam: a continuous gradient has the same difference across ordinary
+        within-chart edges.  Estimate the local expected variation from the
+        two charts and penalize only the unexplained boundary excess.
+        """
+        if not isinstance(self.texture_field, AtlasTextureField):
+            return None
+        if not self.texture_field.seam_edges.numel():
+            zero = self.albedo_logits.sum() * 0
+            return {"raw": zero, "surface_gradient": zero, "excess": zero}
+        if albedo is None:
+            albedo = self.selected_albedo()
+        edges = self.texture_field.edges
+        local_sum = albedo.new_zeros(self.selected_count)
+        local_weight = albedo.new_zeros(self.selected_count)
+        if edges.numel():
+            edge_left, edge_right = edges.T
+            edge_visibility = torch.sqrt(
+                self.selected_visibility[edge_left]
+                * self.selected_visibility[edge_right]
+            )
+            edge_difference = (
+                albedo[edge_left] - albedo[edge_right]
+            ).abs().mean(1)
+            weighted_difference = edge_difference * edge_visibility
+            local_sum.scatter_add_(0, edge_left, weighted_difference)
+            local_sum.scatter_add_(0, edge_right, weighted_difference)
+            local_weight.scatter_add_(0, edge_left, edge_visibility)
+            local_weight.scatter_add_(0, edge_right, edge_visibility)
+        local_gradient = local_sum / local_weight.clamp_min(1e-7)
+        left, right = self.texture_field.seam_edges.T
+        visibility = torch.sqrt(
+            self.selected_visibility[left] * self.selected_visibility[right]
+        )
+        weight = self.texture_field.seam_weight.flatten() * visibility
+        difference = (albedo[left] - albedo[right]).abs().mean(1)
+        expected = 0.5 * (local_gradient[left] + local_gradient[right])
+        denominator = weight.sum().clamp_min(1e-7)
+        return {
+            "raw": (difference * weight).sum() / denominator,
+            "surface_gradient": (expected * weight).sum() / denominator,
+            # Mutual-kNN edges do not all have exactly the same length.  The
+            # modest tolerance prevents normal gradient variation from being
+            # mislabeled as a discontinuity while retaining a hinge on jumps.
+            "excess": (torch.relu(difference - 1.5 * expected) * weight).sum()
+            / denominator,
+        }
+
+    def atlas_diagnostics(self):
+        if not isinstance(self.texture_field, AtlasTextureField):
+            return {}
+        diagnostics = self.texture_field.diagnostics()
+        seam = self._weighted_seam_statistics()
+        diagnostics["chart_seam_energy"] = seam["excess"]
+        diagnostics["chart_seam_raw_energy"] = seam["raw"]
+        diagnostics["surface_gradient_energy"] = seam["surface_gradient"]
+        return diagnostics
+
     @torch.no_grad()
     def initialize_texture(self, reference_chw: torch.Tensor, strength=0.6):
         if self.texture_field is None:
@@ -211,7 +313,7 @@ class StyleState(nn.Module):
         )[0]
 
     def checkpoint_metadata(self):
-        return {
+        metadata = {
             "method": self.method,
             "selected_count": self.selected_count,
             "residual_degree": self.residual_degree,
@@ -228,11 +330,41 @@ class StyleState(nn.Module):
                 self.texture_field.resolution if self.texture_field is not None else None
             ),
         }
+        if isinstance(self.texture_field, AtlasTextureField):
+            metadata.update({
+                "atlas_version": self.texture_field.atlas_version,
+                "atlas_chart_count": self.texture_field.chart_count,
+                "atlas_neighbours": self.texture_field.atlas_neighbours,
+                "atlas_padding": self.texture_field.atlas_padding,
+                "atlas_feather": self.texture_field.atlas_feather,
+                "atlas_uv_offset_limit": self.texture_field.uv_offset_limit,
+                "atlas_source_layout": self.texture_field.source_layout,
+                "atlas_reference_repeat": self.texture_field.reference_repeat,
+                "atlas_state_keys": {
+                    "chart_id": "texture_field.chart_ids",
+                    "uv": "texture_field.local_uv",
+                    "packed_uv": "texture_field.atlas_uv",
+                    "layout": "texture_field.chart_layout",
+                    "reference_regions": "texture_field.reference_regions",
+                },
+            })
+        return metadata
 
     @torch.no_grad()
     def load_checkpoint_state(self, state_dict):
         incompatible = self.load_state_dict(state_dict, strict=False)
-        allowed_missing = {"texture_field.reference_logit_grid"}
+        allowed_missing = {
+            "texture_field.reference_logit_grid",
+            # Atlas v1 checkpoints predate explicit surface-component IDs.
+            "texture_field.component_ids",
+            # Atlas v1/v2 checkpoints stored only the padded inner layout.
+            "texture_field.chart_cells",
+            # Atlas v1-v3 checkpoints predate distance-weighted seam pairs.
+            "texture_field.seam_weight",
+            # Atlas v6 and earlier derived reference sampling from rectangles.
+            "texture_field.source_transforms",
+            "texture_field.source_island_ids",
+        }
         unexpected_missing = set(incompatible.missing_keys) - allowed_missing
         if unexpected_missing or incompatible.unexpected_keys:
             raise RuntimeError(

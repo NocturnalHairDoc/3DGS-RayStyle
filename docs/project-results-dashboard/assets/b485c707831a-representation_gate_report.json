@@ -1,0 +1,128 @@
+{
+  "atlas_version": 12,
+  "iterations": 150,
+  "source_fingerprint": "37817c23e727399e74fd991b672248ee1ac921d70ee2ab0d1a2d9a987d4dd6a4",
+  "automatic_gates_pass": true,
+  "visual_gates_pass": true,
+  "validation_pass": true,
+  "visual_review_required": [
+    "synthetic motif remains recognizable in at least three views",
+    "no obvious chart seam or abrupt orientation change"
+  ],
+  "cases": [
+    {
+      "case": "bicycle_checker",
+      "passed": true,
+      "gates": {
+        "finite_metrics": true,
+        "intra_chart_collision_le_2pct": true,
+        "zero_inter_chart_overlap": true,
+        "foldover_le_0_5pct": true,
+        "padding_violation_le_2pct": true,
+        "positive_atlas_occupancy": true,
+        "positive_gradient_retention": true,
+        "normalized_seam_not_increased": true
+      }
+    },
+    {
+      "case": "bicycle_gradient",
+      "passed": true,
+      "gates": {
+        "finite_metrics": true,
+        "intra_chart_collision_le_2pct": true,
+        "zero_inter_chart_overlap": true,
+        "foldover_le_0_5pct": true,
+        "padding_violation_le_2pct": true,
+        "positive_atlas_occupancy": true,
+        "positive_gradient_retention": true,
+        "normalized_seam_not_increased": true
+      }
+    },
+    {
+      "case": "bicycle_orientation",
+      "passed": true,
+      "gates": {
+        "finite_metrics": true,
+        "intra_chart_collision_le_2pct": true,
+        "zero_inter_chart_overlap": true,
+        "foldover_le_0_5pct": true,
+        "padding_violation_le_2pct": true,
+        "positive_atlas_occupancy": true,
+        "positive_gradient_retention": true,
+        "normalized_seam_not_increased": true
+      }
+    },
+    {
+      "case": "bicycle_sunflower",
+      "passed": true,
+      "gates": {
+        "finite_metrics": true,
+        "intra_chart_collision_le_2pct": true,
+        "zero_inter_chart_overlap": true,
+        "foldover_le_0_5pct": true,
+        "padding_violation_le_2pct": true,
+        "positive_atlas_occupancy": true,
+        "positive_gradient_retention": true,
+        "normalized_seam_not_increased": true
+      }
+    },
+    {
+      "case": "stump_checker",
+      "passed": true,
+      "gates": {
+        "finite_metrics": true,
+        "intra_chart_collision_le_2pct": true,
+        "zero_inter_chart_overlap": true,
+        "foldover_le_0_5pct": true,
+        "padding_violation_le_2pct": true,
+        "positive_atlas_occupancy": true,
+        "positive_gradient_retention": true,
+        "normalized_seam_not_increased": true
+      }
+    },
+    {
+      "case": "bulldozer_gradient",
+      "passed": true,
+      "gates": {
+        "finite_metrics": true,
+        "intra_chart_collision_le_2pct": true,
+        "zero_inter_chart_overlap": true,
+        "foldover_le_0_5pct": true,
+        "padding_violation_le_2pct": true,
+        "positive_atlas_occupancy": true,
+        "positive_gradient_retention": true,
+        "normalized_seam_not_increased": true
+      }
+    }
+  ],
+  "visual_review": {
+    "passed": true,
+    "note": "Reviewed native-resolution segment crops across every available evaluation view. All six representation cases satisfy the visual gates for this stage.",
+    "cases": {
+      "bicycle_checker": {
+        "passed": true,
+        "note": "Checker cells remain recognizable and spatially fixed across 12 views; no visible chart-shaped discontinuities or distant-surface duplication."
+      },
+      "bicycle_gradient": {
+        "passed": true,
+        "note": "The continuous gradient stays anchored to the road and changes smoothly across the selected surface in all 12 views."
+      },
+      "bicycle_orientation": {
+        "passed": true,
+        "note": "Directional arrows and markers remain recognizable and keep a consistent orientation across 12 views."
+      },
+      "bicycle_sunflower": {
+        "passed": true,
+        "note": "Sunflower centers, petals, and green background are visually distinguishable from several viewpoints without rectangular chart seams."
+      },
+      "stump_checker": {
+        "passed": true,
+        "note": "The checker pattern wraps the curved selected surface consistently across all 8 views; boundaries follow geometry rather than atlas rectangles."
+      },
+      "bulldozer_gradient": {
+        "passed": true,
+        "note": "The projected gradient is coherent across the multi-part model in all 8 views, with no obvious block-packed chart imprint in screen space."
+      }
+    }
+  }
+}

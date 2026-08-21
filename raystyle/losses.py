@@ -68,8 +68,15 @@ def _rgb_patch_bank(image: torch.Tensor, size: int, kernel=5, stride=3, maximum=
     # Centered patches force local stroke/edge matching rather than allowing a
     # flat blue patch to win through global colour similarity.
     patches = patches - patches.mean(2, keepdim=True)
-    patches = F.normalize(patches.flatten(1), dim=1, eps=1e-6)
-    return _limit_rows(patches, maximum)
+    saliency = patches.square().mean((1, 2))
+    threshold = torch.quantile(saliency, 0.4)
+    keep = saliency > torch.maximum(threshold, saliency.new_tensor(1e-7))
+    if torch.any(keep):
+        patches, saliency = patches[keep], saliency[keep]
+    if len(patches) > int(maximum):
+        ids = torch.argsort(saliency, descending=True, stable=True)[:int(maximum)]
+        patches = patches[ids]
+    return F.normalize(patches.flatten(1), dim=1, eps=1e-6)
 
 
 def _masked_rgb_patches(
@@ -94,11 +101,15 @@ def _masked_rgb_patches(
     return _limit_rows(patches, maximum)
 
 
-def _nearest_patch_loss(query: torch.Tensor, reference: torch.Tensor):
+def _nearest_patch_loss(
+    query: torch.Tensor, reference: torch.Tensor, coverage_weight: float = 0.35,
+):
     if not len(query):
         return reference.sum() * 0
     similarity = query @ reference.T
-    return (1 - similarity.max(dim=1).values).mean()
+    query_to_reference = (1 - similarity.max(dim=1).values).mean()
+    reference_coverage = (1 - similarity.max(dim=0).values).mean()
+    return query_to_reference + float(coverage_weight) * reference_coverage
 
 
 def _segment_roi(image: torch.Tensor, mask: torch.Tensor, padding=0.12):
@@ -159,18 +170,37 @@ def rgb_style_stats(image: torch.Tensor, mask: torch.Tensor | None = None):
 
 
 class ReferenceStyleLoss:
-    def __init__(self, dino_features: torch.Tensor, reference_rgb: torch.Tensor):
+    def __init__(
+        self,
+        dino_features: torch.Tensor,
+        reference_rgb: torch.Tensor,
+        patch_dino_features: torch.Tensor | None = None,
+        patch_reference_rgb: torch.Tensor | None = None,
+    ):
         with torch.no_grad():
             self.feature_targets = tuple(v.detach() for v in masked_feature_stats(dino_features))
             self.rgb_targets = tuple(v.detach() for v in rgb_style_stats(reference_rgb))
             reference_batch = reference_rgb.unsqueeze(0) if reference_rgb.ndim == 3 else reference_rgb
             self.reference_rgb_mean = reference_batch.mean((2, 3)).detach()
             self.reference_lab_mean = srgb_to_lab(reference_batch).mean((2, 3)).detach()
-            self.dino_patch_bank = F.normalize(
-                dino_features.detach().flatten(2).transpose(1, 2)[0], dim=1, eps=1e-6,
+            lab_stats = rgb_style_stats(srgb_to_lab(reference_batch))
+            self.reference_lab_covariance = lab_stats[1].detach()
+            patch_features = (
+                dino_features if patch_dino_features is None else patch_dino_features
             )
+            patch_rgb = (
+                reference_rgb if patch_reference_rgb is None else patch_reference_rgb
+            )
+            dino_bank = F.normalize(
+                patch_features.detach().flatten(2).transpose(1, 2)[0], dim=1, eps=1e-6,
+            )
+            dino_center = F.normalize(dino_bank.mean(0, keepdim=True), dim=1, eps=1e-6)
+            saliency = 1 - (dino_bank * dino_center).sum(1)
+            keep = min(len(dino_bank), 512)
+            ids = torch.argsort(saliency, descending=True, stable=True)[:keep]
+            self.dino_patch_bank = dino_bank[ids]
             self.rgb_patch_banks = {
-                size: _rgb_patch_bank(reference_rgb.detach(), size).detach()
+                size: _rgb_patch_bank(patch_rgb.detach(), size).detach()
                 for size in (96, 160, 224)
             }
 
@@ -210,8 +240,19 @@ class ReferenceStyleLoss:
         rgb = rgb_style_stats(image, mask)
         feature_loss = F.l1_loss(feat[0], self.feature_targets[0]) + F.l1_loss(feat[1], self.feature_targets[1])
         rgb_loss = F.l1_loss(rgb[0], self.rgb_targets[0]) + F.l1_loss(rgb[1], self.rgb_targets[1])
-        gradient_loss = F.l1_loss(rgb[2], self.rgb_targets[2])
-        return feature_loss + 0.5 * rgb_loss + 0.25 * gradient_loss
+        gradient_loss = F.smooth_l1_loss(rgb[2], self.rgb_targets[2], beta=0.02)
+        gradient_excess = F.relu(rgb[2] - 1.25 * self.rgb_targets[2]).mean()
+        return feature_loss + 0.5 * rgb_loss + 0.15 * gradient_loss + 0.5 * gradient_excess
+
+    def lab_diagnostics(
+        self, image: torch.Tensor, mask: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        lab = srgb_to_lab(image)
+        mean, covariance, _ = rgb_style_stats(lab, mask)
+        return (
+            F.l1_loss(mean, self.reference_lab_mean),
+            F.l1_loss(covariance, self.reference_lab_covariance),
+        )
 
     def patch_loss(self, image: torch.Tensor, features: torch.Tensor, mask: torch.Tensor):
         source_shape = image.shape[-2:]
@@ -237,6 +278,67 @@ class ReferenceStyleLoss:
 def outside_preservation_loss(stylized: torch.Tensor, original: torch.Tensor, mask: torch.Tensor):
     outside = (1 - mask).clamp(0, 1)
     return ((stylized - original).abs() * outside).sum() / (outside.sum() * 3).clamp_min(1e-4)
+
+
+def boundary_outside_preservation_loss(
+    stylized: torch.Tensor, original: torch.Tensor, mask: torch.Tensor, radius: int = 9,
+):
+    """Measure leakage in a narrow outside ring around the rendered segment."""
+    image = stylized.unsqueeze(0) if stylized.ndim == 3 else stylized
+    target = original.unsqueeze(0) if original.ndim == 3 else original
+    support = mask.unsqueeze(0) if mask.ndim == 3 else mask
+    radius = max(1, int(radius))
+    dilated = F.max_pool2d(
+        support.float(), kernel_size=2 * radius + 1, stride=1, padding=radius,
+    )
+    ring = (dilated - support).clamp(0, 1) * (1 - support).clamp(0, 1)
+    return ((image - target).abs() * ring).sum() / (
+        ring.sum() * image.shape[1]
+    ).clamp_min(1e-4)
+
+
+def masked_gradient_retention(
+    image: torch.Tensor, reference: torch.Tensor, mask: torch.Tensor,
+):
+    """Screen-space texture gradient ratio inside a shared visible segment."""
+    def gray(values):
+        values = values.unsqueeze(0) if values.ndim == 3 else values
+        return (
+            0.2126 * values[:, 0:1]
+            + 0.7152 * values[:, 1:2]
+            + 0.0722 * values[:, 2:3]
+        )
+
+    support = mask.unsqueeze(0) if mask.ndim == 3 else mask
+    first, target = gray(image), gray(reference)
+    horizontal = support[..., 1:] * support[..., :-1]
+    vertical = support[..., 1:, :] * support[..., :-1, :]
+
+    def energy(values):
+        dx = ((values[..., 1:] - values[..., :-1]).abs() * horizontal).sum()
+        dy = ((values[..., 1:, :] - values[..., :-1, :]).abs() * vertical).sum()
+        weight = horizontal.sum() + vertical.sum()
+        return (dx + dy) / weight.clamp_min(1e-6)
+
+    return energy(first) / energy(target).clamp_min(1e-6)
+
+
+def masked_lab_mean_distance(
+    image: torch.Tensor, reference: torch.Tensor, mask: torch.Tensor,
+):
+    """Mean CIE Lab colour shift inside the shared visible segment."""
+    first = image.unsqueeze(0) if image.ndim == 3 else image
+    target = reference.unsqueeze(0) if reference.ndim == 3 else reference
+    support = mask.unsqueeze(0) if mask.ndim == 3 else mask
+    if first.shape != target.shape:
+        raise ValueError("image and reference must have the same shape")
+    if support.shape[-2:] != first.shape[-2:]:
+        raise ValueError("mask and images must have the same spatial shape")
+    weights = support.float().clamp(0, 1)
+    denominator = weights.sum((2, 3)).clamp_min(1e-6)
+    first_mean = (srgb_to_lab(first.clamp(0, 1)) * weights).sum((2, 3)) / denominator
+    target_mean = (srgb_to_lab(target.clamp(0, 1)) * weights).sum((2, 3)) / denominator
+    return (first_mean - target_mean).abs().mean()
 
 
 def _local_structure(image: torch.Tensor):

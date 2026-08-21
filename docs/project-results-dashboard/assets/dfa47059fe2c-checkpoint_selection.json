@@ -1,0 +1,40 @@
+{
+  "policy": "select the latest evaluated checkpoint that passes every non-style gate and either the numeric or explicit visual style criterion",
+  "validation_400": "PROJECT_ROOT/outputs/atlas_v14_paired_400_20260815",
+  "formal_2000": "PROJECT_ROOT/outputs/atlas_v15_formal_2000_20260815",
+  "all_scenarios_accept_iteration_2000": false,
+  "selected": [
+    {
+      "scenario": "bicycle_starry",
+      "iteration": 2000,
+      "reason": "latest evaluated checkpoint passes all non-style gates and the numeric or reviewed style criterion",
+      "triplanar_checkpoint": "PROJECT_ROOT/outputs/atlas_v15_formal_2000_20260815/bicycle_starry/triplanar/checkpoint_latest.pt",
+      "atlas_checkpoint": "PROJECT_ROOT/outputs/atlas_v15_formal_2000_20260815/bicycle_starry/atlas/checkpoint_latest.pt",
+      "source_validation": "PROJECT_ROOT/outputs/atlas_v15_formal_2000_20260815"
+    },
+    {
+      "scenario": "bicycle_sunflowers",
+      "iteration": 2000,
+      "reason": "latest evaluated checkpoint passes all non-style gates and the numeric or reviewed style criterion",
+      "triplanar_checkpoint": "PROJECT_ROOT/outputs/atlas_v15_formal_2000_20260815/bicycle_sunflowers/triplanar/checkpoint_latest.pt",
+      "atlas_checkpoint": "PROJECT_ROOT/outputs/atlas_v15_formal_2000_20260815/bicycle_sunflowers/atlas/checkpoint_latest.pt",
+      "source_validation": "PROJECT_ROOT/outputs/atlas_v15_formal_2000_20260815"
+    },
+    {
+      "scenario": "stump_starry",
+      "iteration": 400,
+      "reason": "later iteration 2000 fails: fixed_style_1pct, unseen_style_1pct, fixed_multiview_no_worse, unseen_multiview_no_worse, uv_foldover_half_pct",
+      "triplanar_checkpoint": "PROJECT_ROOT/outputs/atlas_v13_paired_400_20260815/stump_starry/triplanar/checkpoint_latest.pt",
+      "atlas_checkpoint": "PROJECT_ROOT/outputs/atlas_v13_paired_400_20260815/stump_starry/atlas/checkpoint_latest.pt",
+      "source_validation": "PROJECT_ROOT/outputs/atlas_v14_paired_400_20260815"
+    },
+    {
+      "scenario": "bulldozer_starry",
+      "iteration": 2000,
+      "reason": "latest evaluated checkpoint passes all non-style gates and the numeric or reviewed style criterion",
+      "triplanar_checkpoint": "PROJECT_ROOT/outputs/atlas_v15_formal_2000_20260815/bulldozer_starry/triplanar/checkpoint_latest.pt",
+      "atlas_checkpoint": "PROJECT_ROOT/outputs/atlas_v15_formal_2000_20260815/bulldozer_starry/atlas/checkpoint_latest.pt",
+      "source_validation": "PROJECT_ROOT/outputs/atlas_v15_formal_2000_20260815"
+    }
+  ]
+}

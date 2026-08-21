@@ -145,7 +145,7 @@ def test_texture_delta_regularization_anchors_reference_without_smoothing_it():
     assert float(delta_tv.detach()) > 0
 
 
-def test_old_uv_checkpoint_without_reference_anchor_still_loads():
+def test_old_triplanar_checkpoint_without_reference_anchor_still_loads():
     source = _state("ours", albedo_mode="additive")
     old_state = {
         key: value for key, value in source.state_dict().items()
@@ -153,6 +153,8 @@ def test_old_uv_checkpoint_without_reference_anchor_still_loads():
     }
     restored = _state("ours", albedo_mode="additive")
     restored.load_checkpoint_state(old_state)
+    assert restored.texture_mapping == "triplanar"
+    assert restored.texture_field.logit_grid_raw.shape == (3, 3, 16, 16)
     assert torch.allclose(
         restored.texture_field.reference_logit_grid,
         restored.texture_field.logit_grid(),

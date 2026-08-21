@@ -1,0 +1,71 @@
+{
+  "automatic_gates_pass": true,
+  "videos_created": true,
+  "visual_gates_pass": true,
+  "validation_pass": true,
+  "cases": [
+    {
+      "case": "bicycle_orientation",
+      "automatic_gates_pass": true,
+      "frame_count": 96,
+      "evaluated_pair_fraction": 0.7395833333333334,
+      "mean_corresponded_rgb_l1": 0.07051737624889529,
+      "p95_corresponded_rgb_l1": 0.17938575893640518,
+      "mean_temporal_excess_l1": 0.015874234867662613,
+      "p95_temporal_excess_l1": 0.05273809656500816,
+      "loop_closure_rgb_l1": 0.08327851444482803,
+      "maximum_outside_leakage": 0.019443541765213013,
+      "maximum_boundary_leakage": 0.05933382734656334,
+      "video_created": true,
+      "summary": "PROJECT_ROOT/outputs/atlas_v12_representation_final_150_20260815/bicycle_orientation/orbit_validation_96_reliable/orbit_summary.json"
+    },
+    {
+      "case": "bulldozer_gradient",
+      "automatic_gates_pass": true,
+      "frame_count": 96,
+      "evaluated_pair_fraction": 0.9583333333333334,
+      "mean_corresponded_rgb_l1": 0.048307392310918025,
+      "p95_corresponded_rgb_l1": 0.09983467496931554,
+      "mean_temporal_excess_l1": 6.690297437750775e-05,
+      "p95_temporal_excess_l1": 0.0,
+      "loop_closure_rgb_l1": 0.034135375171899796,
+      "maximum_outside_leakage": 0.004013247787952423,
+      "maximum_boundary_leakage": 0.023121755570173264,
+      "video_created": true,
+      "summary": "PROJECT_ROOT/outputs/atlas_v12_representation_final_150_20260815/bulldozer_gradient/orbit_validation_96_reliable/orbit_summary.json"
+    },
+    {
+      "case": "stump_checker",
+      "automatic_gates_pass": true,
+      "frame_count": 96,
+      "evaluated_pair_fraction": 0.71875,
+      "mean_corresponded_rgb_l1": 0.07029112574198972,
+      "p95_corresponded_rgb_l1": 0.10414649844169616,
+      "mean_temporal_excess_l1": 0.02760128941440928,
+      "p95_temporal_excess_l1": 0.04574995934963226,
+      "loop_closure_rgb_l1": 0.08131006360054016,
+      "maximum_outside_leakage": 0.007470694836229086,
+      "maximum_boundary_leakage": 0.04015807807445526,
+      "video_created": true,
+      "summary": "PROJECT_ROOT/outputs/atlas_v12_representation_final_150_20260815/stump_checker/orbit_validation_96_reliable/orbit_summary.json"
+    }
+  ],
+  "visual_review": {
+    "passed": true,
+    "note": "Reviewed the 96-frame orbit contact sheets together with the reliable adjacent-patch and loop-closure metrics. Texture placement remains coherent through each closed path.",
+    "cases": {
+      "bicycle_orientation": {
+        "passed": true,
+        "note": "Road arrows keep their world-space direction around the closed path; temporary bench occlusion does not introduce a texture reset when the road reappears."
+      },
+      "stump_checker": {
+        "passed": true,
+        "note": "Checker cells remain attached to the curved stump surface across front, side, rear, and elevated views without a rectangular chart discontinuity."
+      },
+      "bulldozer_gradient": {
+        "passed": true,
+        "note": "The global projected gradient remains continuous across the multi-part bulldozer and closes without a visible color-layout jump."
+      }
+    }
+  }
+}

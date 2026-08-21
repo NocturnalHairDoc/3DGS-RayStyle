@@ -1,0 +1,113 @@
+{
+  "source_validation": "PROJECT_ROOT/outputs/atlas_v12_paired_400_20260815",
+  "rows": [
+    {
+      "experiment": "bicycle_starry",
+      "render_mode": "albedo",
+      "fixed/style_distance_mean": 1.086915562550227,
+      "unseen_hdr/style_distance_mean": 1.086915562550227,
+      "fixed/content_distance_mean": 0.546157032251358,
+      "fixed/outside_leakage_mean": 0.0035447385356140635,
+      "unseen_hdr/outside_leakage_mean": 0.0035447385356140635,
+      "unseen_hdr/texture_structure_distance_mean": 0.0,
+      "fixed/overlap_aware_adjacent_patch_consistency": 0.8052044153213501,
+      "unseen_hdr/overlap_aware_adjacent_patch_consistency": 0.8052044153213501
+    },
+    {
+      "experiment": "bicycle_starry",
+      "render_mode": "diffuse_only",
+      "fixed/style_distance_mean": 1.0701581041018169,
+      "unseen_hdr/style_distance_mean": 1.072150597969691,
+      "fixed/content_distance_mean": 0.5456600412726402,
+      "fixed/outside_leakage_mean": 0.0032613577980858586,
+      "unseen_hdr/outside_leakage_mean": 0.003293528667806337,
+      "unseen_hdr/texture_structure_distance_mean": 0.028750440425937995,
+      "fixed/overlap_aware_adjacent_patch_consistency": 0.8080137014389038,
+      "unseen_hdr/overlap_aware_adjacent_patch_consistency": 0.8086582243442535
+    },
+    {
+      "experiment": "bicycle_starry",
+      "render_mode": "pbr",
+      "fixed/style_distance_mean": 1.0698493123054504,
+      "unseen_hdr/style_distance_mean": 1.0711340755224228,
+      "fixed/content_distance_mean": 0.5270539075136185,
+      "fixed/outside_leakage_mean": 0.002853733031467224,
+      "unseen_hdr/outside_leakage_mean": 0.0028491709866405777,
+      "unseen_hdr/texture_structure_distance_mean": 0.05859640244549761,
+      "fixed/overlap_aware_adjacent_patch_consistency": 0.8103869318962097,
+      "unseen_hdr/overlap_aware_adjacent_patch_consistency": 0.8086375176906586
+    },
+    {
+      "experiment": "stump_starry",
+      "render_mode": "albedo",
+      "fixed/style_distance_mean": 1.1285013854503632,
+      "unseen_hdr/style_distance_mean": 1.1285013854503632,
+      "fixed/content_distance_mean": 0.6551680564880371,
+      "fixed/outside_leakage_mean": 0.004007011448265985,
+      "unseen_hdr/outside_leakage_mean": 0.004007011448265985,
+      "unseen_hdr/texture_structure_distance_mean": 0.0,
+      "fixed/overlap_aware_adjacent_patch_consistency": 0.663091242313385,
+      "unseen_hdr/overlap_aware_adjacent_patch_consistency": 0.663091242313385
+    },
+    {
+      "experiment": "stump_starry",
+      "render_mode": "diffuse_only",
+      "fixed/style_distance_mean": 1.0908784717321396,
+      "unseen_hdr/style_distance_mean": 1.0908413156867027,
+      "fixed/content_distance_mean": 0.6597901880741119,
+      "fixed/outside_leakage_mean": 0.004249581921612844,
+      "unseen_hdr/outside_leakage_mean": 0.004286854396923445,
+      "unseen_hdr/texture_structure_distance_mean": 0.009465995855862275,
+      "fixed/overlap_aware_adjacent_patch_consistency": 0.6658946871757507,
+      "unseen_hdr/overlap_aware_adjacent_patch_consistency": 0.6655574313231877
+    },
+    {
+      "experiment": "stump_starry",
+      "render_mode": "pbr",
+      "fixed/style_distance_mean": 1.099849596619606,
+      "unseen_hdr/style_distance_mean": 1.0998365134000778,
+      "fixed/content_distance_mean": 0.6520034670829773,
+      "fixed/outside_leakage_mean": 0.003874195826938376,
+      "unseen_hdr/outside_leakage_mean": 0.0038823512149974704,
+      "unseen_hdr/texture_structure_distance_mean": 0.029648747062310576,
+      "fixed/overlap_aware_adjacent_patch_consistency": 0.669836265700204,
+      "unseen_hdr/overlap_aware_adjacent_patch_consistency": 0.6685719064303807
+    },
+    {
+      "experiment": "bulldozer_starry",
+      "render_mode": "albedo",
+      "fixed/style_distance_mean": 1.0846055895090103,
+      "unseen_hdr/style_distance_mean": 1.0846055895090103,
+      "fixed/content_distance_mean": 0.6075678393244743,
+      "fixed/outside_leakage_mean": 0.001523730781627819,
+      "unseen_hdr/outside_leakage_mean": 0.001523730781627819,
+      "unseen_hdr/texture_structure_distance_mean": 0.0,
+      "fixed/overlap_aware_adjacent_patch_consistency": 0.5750263461044857,
+      "unseen_hdr/overlap_aware_adjacent_patch_consistency": 0.5750263461044857
+    },
+    {
+      "experiment": "bulldozer_starry",
+      "render_mode": "diffuse_only",
+      "fixed/style_distance_mean": 1.0510604232549667,
+      "unseen_hdr/style_distance_mean": 1.0545979514718056,
+      "fixed/content_distance_mean": 0.6095441058278084,
+      "fixed/outside_leakage_mean": 0.0014598722336813807,
+      "unseen_hdr/outside_leakage_mean": 0.0014964658039389178,
+      "unseen_hdr/texture_structure_distance_mean": 0.030315360374515876,
+      "fixed/overlap_aware_adjacent_patch_consistency": 0.5642303781849998,
+      "unseen_hdr/overlap_aware_adjacent_patch_consistency": 0.564783547605787
+    },
+    {
+      "experiment": "bulldozer_starry",
+      "render_mode": "pbr",
+      "fixed/style_distance_mean": 1.0465832352638245,
+      "unseen_hdr/style_distance_mean": 1.0473382771015167,
+      "fixed/content_distance_mean": 0.6042600870132446,
+      "fixed/outside_leakage_mean": 0.0012930403609061614,
+      "unseen_hdr/outside_leakage_mean": 0.0013119026916683652,
+      "unseen_hdr/texture_structure_distance_mean": 0.06768616032786667,
+      "fixed/overlap_aware_adjacent_patch_consistency": 0.5643853162016187,
+      "unseen_hdr/overlap_aware_adjacent_patch_consistency": 0.5666227851595197
+    }
+  ]
+}

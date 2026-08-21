@@ -66,3 +66,45 @@ def dino_content_loss(stylized: torch.Tensor, content: torch.Tensor, mask: torch
     weights = F.interpolate(mask.float(), error.shape[-2:], mode="bilinear", align_corners=False)
     return (error * weights).sum() / weights.sum().clamp_min(1e-4)
 
+
+def masked_patch_tokens(features: torch.Tensor, mask: torch.Tensor, maximum=512):
+    """Return a bounded set of normalized DINO tokens inside a segment."""
+    if mask.ndim == 3:
+        mask = mask.unsqueeze(1)
+    weights = F.interpolate(
+        mask.float(), features.shape[-2:], mode="bilinear", align_corners=False,
+    )[0, 0]
+    tokens = features[0].flatten(1).T[weights.flatten() > 0.5]
+    if len(tokens) > int(maximum):
+        ids = torch.linspace(0, len(tokens) - 1, int(maximum), device=tokens.device).long()
+        tokens = tokens[ids]
+    return F.normalize(tokens, dim=1, eps=1e-6)
+
+
+def adjacent_patch_distance(first: torch.Tensor, second: torch.Tensor):
+    """Symmetric nearest-neighbour DINO patch distance; lower is consistent."""
+    if not len(first) or not len(second):
+        return None
+    similarity = first @ second.T
+    return 0.5 * (
+        (1 - similarity.max(1).values).mean()
+        + (1 - similarity.max(0).values).mean()
+    )
+
+
+def corresponded_patch_distance(
+    first_ids: torch.Tensor, first: torch.Tensor,
+    second_ids: torch.Tensor, second: torch.Tensor,
+):
+    """DINO distance at Gaussian IDs visible in both views."""
+    if not len(first_ids) or not len(second_ids):
+        return None
+    positions = torch.searchsorted(second_ids, first_ids)
+    valid = positions < len(second_ids)
+    clamped = positions.clamp(max=max(len(second_ids) - 1, 0))
+    valid &= second_ids[clamped] == first_ids
+    if not torch.any(valid):
+        return None
+    left = F.normalize(first[valid], dim=1, eps=1e-6)
+    right = F.normalize(second[clamped[valid]], dim=1, eps=1e-6)
+    return (1 - (left * right).sum(1)).mean()

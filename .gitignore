@@ -24,6 +24,7 @@ venv/
 # Local experiment configuration
 configs/*.yaml
 !configs/mvp.example.yaml
+!configs/multisegment.example.yaml
 
 # Datasets, masks, model weights, and HDR assets
 data/
@@ -42,11 +43,18 @@ hdr/
 *.part
 
 # Generated results and diagnostics
+output/
 outputs/
 diagnostics/
 runs/
 wandb/
+tmp/
 *.log
+
+# Local experiment analysis and repository utilities
+scripts/evaluation/
+scripts/reporting/
+scripts/maintenance/
 
 # Reference images are user-provided. Keep only their documentation.
 style/*

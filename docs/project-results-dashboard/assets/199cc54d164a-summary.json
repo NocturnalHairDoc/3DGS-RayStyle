@@ -1,0 +1,119 @@
+{
+  "method": "ours",
+  "checkpoint": "PROJECT_ROOT/outputs/atlas_v13_paired_400_20260815/bicycle_sunflowers/atlas/checkpoint_latest.pt",
+  "count": 36,
+  "atlas/uv_collision_rate": 0.004292139783501625,
+  "atlas/intra_chart_collision_rate": 0.004292139783501625,
+  "atlas/inter_chart_overlap_rate": 0.0,
+  "atlas/uv_foldover_rate": 0.003631591796875,
+  "atlas/atlas_occupancy": 0.8686341643333435,
+  "atlas/padding_violation_rate": 0.0,
+  "atlas/chart_seam_energy": 0.00937463715672493,
+  "atlas/uv_distortion": 0.052020955830812454,
+  "atlas/reference_texture_gradient_retention": 1.2738726139068604,
+  "atlas/source_uv_seam_energy": 0.0010197123046964407,
+  "atlas/source_uv_seam_ratio": 1.7943352460861206,
+  "atlas/source_texel_density_cv": 0.2614128887653351,
+  "atlas/chart_seam_raw_energy": 0.025092514231801033,
+  "atlas/surface_gradient_energy": 0.017521750181913376,
+  "fixed/style_distance_mean": 1.0399261713027954,
+  "fixed/style_distance_std": 0.049242635308676265,
+  "fixed/content_distance_mean": 0.5890152504046758,
+  "fixed/content_distance_std": 0.09149697801048182,
+  "fixed/outside_leakage_mean": 0.003805115974197785,
+  "fixed/outside_leakage_std": 0.0011185879299768224,
+  "fixed/boundary_outside_leakage_mean": 0.01183212905501326,
+  "fixed/boundary_outside_leakage_std": 0.0027275076168319784,
+  "fixed/patch_match_distance_mean": 0.9959088762601217,
+  "fixed/patch_match_distance_std": 0.051215165803375186,
+  "fixed/lab_mean_distance_mean": 0.030145397720237572,
+  "fixed/lab_mean_distance_std": 0.0051734704814190525,
+  "fixed/lab_covariance_distance_mean": 0.0058600782649591565,
+  "fixed/lab_covariance_distance_std": 0.00047855277146511096,
+  "fixed/layout_patch_match_distance_mean": 0.9959088762601217,
+  "fixed/layout_patch_match_distance_std": 0.051215165803375186,
+  "fixed/source_uv_coverage_mean": 0.4129050982495149,
+  "fixed/source_uv_coverage_std": 0.19889504239787106,
+  "fixed/source_uv_span_mean": 0.7597751865784327,
+  "fixed/source_uv_span_std": 0.12247333450303721,
+  "fixed/source_uv_entropy_mean": 0.6309139480193456,
+  "fixed/source_uv_entropy_std": 0.13805843140259397,
+  "fixed/screen_reference_gradient_retention_mean": 1.8200035591920216,
+  "fixed/screen_reference_gradient_retention_std": 0.3219251039726768,
+  "fixed/multiview_descriptor_std": 0.0070610675029456615,
+  "fixed/adjacent_view_patch_consistency": 0.4076981083913283,
+  "fixed/overlap_aware_adjacent_patch_consistency": 0.8498308777809143,
+  "unseen_hdr/style_distance_mean": 1.0410768166184425,
+  "unseen_hdr/style_distance_std": 0.049144727096087,
+  "unseen_hdr/content_distance_mean": 0.5897094284494718,
+  "unseen_hdr/content_distance_std": 0.0928200785366316,
+  "unseen_hdr/outside_leakage_mean": 0.0038652633666060865,
+  "unseen_hdr/outside_leakage_std": 0.001128074889609979,
+  "unseen_hdr/boundary_outside_leakage_mean": 0.012007378546210626,
+  "unseen_hdr/boundary_outside_leakage_std": 0.0027389100638410603,
+  "unseen_hdr/patch_match_distance_mean": 0.9976261879007021,
+  "unseen_hdr/patch_match_distance_std": 0.05170172803666225,
+  "unseen_hdr/lab_mean_distance_mean": 0.024469482091565926,
+  "unseen_hdr/lab_mean_distance_std": 0.005845815284403402,
+  "unseen_hdr/lab_covariance_distance_mean": 0.005839809620132049,
+  "unseen_hdr/lab_covariance_distance_std": 0.0005112357616425156,
+  "unseen_hdr/layout_patch_match_distance_mean": 0.9976261879007021,
+  "unseen_hdr/layout_patch_match_distance_std": 0.05170172803666225,
+  "unseen_hdr/source_uv_coverage_mean": 0.4129050982495149,
+  "unseen_hdr/source_uv_coverage_std": 0.19889504239787106,
+  "unseen_hdr/source_uv_span_mean": 0.7597751865784327,
+  "unseen_hdr/source_uv_span_std": 0.1224733345030372,
+  "unseen_hdr/source_uv_entropy_mean": 0.6309139480193456,
+  "unseen_hdr/source_uv_entropy_std": 0.13805843140259397,
+  "unseen_hdr/screen_reference_gradient_retention_mean": 1.8725260595480602,
+  "unseen_hdr/screen_reference_gradient_retention_std": 0.3365525168214861,
+  "unseen_hdr/relighting_response_mean": 0.01148802024545148,
+  "unseen_hdr/relighting_response_std": 0.0030423407020594866,
+  "unseen_hdr/texture_structure_distance_mean": 0.04661146169140314,
+  "unseen_hdr/texture_structure_distance_std": 0.032572667382882746,
+  "unseen_hdr/hdr_lab_mean_shift_mean": 0.009253001752464721,
+  "unseen_hdr/hdr_lab_mean_shift_std": 0.0019077959951082708,
+  "unseen_hdr/hdr_gradient_retention_mean": 1.028423806031545,
+  "unseen_hdr/hdr_gradient_retention_std": 0.037477890622930256,
+  "unseen_hdr/multiview_descriptor_std": 0.007076263194903731,
+  "unseen_hdr/adjacent_view_patch_consistency": 0.40985569086941803,
+  "unseen_hdr/overlap_aware_adjacent_patch_consistency": 0.8516380548477173,
+  "unseen_hdr/by_environment": {
+    "procedural_1": {
+      "hdr_lab_mean_shift": {
+        "mean": 0.011051956719408432,
+        "std": 0.0006056474272885187
+      },
+      "hdr_gradient_retention": {
+        "mean": 1.034638524055481,
+        "std": 0.04141112266301444
+      },
+      "texture_structure_distance": {
+        "mean": 0.05566921333471934,
+        "std": 0.03297523534375845
+      },
+      "style_distance": {
+        "mean": 1.0392977247635524,
+        "std": 0.049661826790742214
+      }
+    },
+    "procedural_0": {
+      "hdr_lab_mean_shift": {
+        "mean": 0.007454046785521011,
+        "std": 0.0006633885479402064
+      },
+      "hdr_gradient_retention": {
+        "mean": 1.0222090880076091,
+        "std": 0.031891347582743354
+      },
+      "texture_structure_distance": {
+        "mean": 0.03755371004808694,
+        "std": 0.02950432926252647
+      },
+      "style_distance": {
+        "mean": 1.0428559084733326,
+        "std": 0.048556987415281236
+      }
+    }
+  }
+}

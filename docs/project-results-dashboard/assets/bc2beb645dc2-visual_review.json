@@ -1,0 +1,21 @@
+{
+  "sunflowers_recognizable": {
+    "passed": true,
+    "evidence": "atlas_unseen_sequence.jpg: sunflower disks, petals, and the yellow-green composition remain recognizable on the road across unseen views 0-5"
+  },
+  "no_obvious_chart_seams": {
+    "passed": true,
+    "evidence": "fixed_view_comparison.jpg and unseen_view_comparison.jpg: no straight or rectangular texture discontinuity is visible on the selected surfaces"
+  },
+  "no_abrupt_unseen_texture_changes": {
+    "passed": true,
+    "evidence": "atlas_unseen_sequence.jpg: motifs remain attached to the selected surfaces through all six unseen views without abrupt view-dependent remapping"
+  },
+  "style_composition_improved": {
+    "bulldozer_starry": {
+      "fixed": true,
+      "unseen": true,
+      "evidence": "Compared with the paired tri-planar render, Atlas retains clearer yellow star points and blue whorl structure across the cab, body, and blade in fixed and unseen views"
+    }
+  }
+}

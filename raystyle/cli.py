@@ -43,6 +43,30 @@ def _view(args):
     view(config, args.checkpoint, scale=args.scale)
 
 
+def _view_bundle(args):
+    from .viewer import view_bundle
+
+    view_bundle(args.bundle, scale=args.scale)
+
+
+def _view_methods(args):
+    from .viewer import view_methods
+
+    view_methods(args.manifest, args.experiment, scale=args.scale)
+
+
+def _validate_orbit(args):
+    from .orbit_validation import validate_orbit
+
+    config = _overridden_config(args)
+    output = args.orbit_output or (Path(config.output_dir) / "orbit_validation")
+    summary = validate_orbit(
+        config, args.checkpoint, output,
+        frame_count=args.frames, fps=args.fps,
+    )
+    print(json.dumps(summary, indent=2, ensure_ascii=False))
+
+
 def _inspect(args):
     from .project_state import segment_inventory
 
@@ -152,6 +176,42 @@ def build_parser():
     viewer.add_argument("--scale", type=float, default=2.0,
                         help="render resolution divisor (default: 2)")
     viewer.set_defaults(function=_view)
+
+    bundle_viewer = subcommands.add_parser(
+        "view-bundle", help="view multiple independent segment checkpoints together",
+    )
+    bundle_viewer.add_argument("--bundle", required=True)
+    bundle_viewer.add_argument(
+        "--scale", type=float, default=2.0,
+        help="render resolution divisor (default: 2)",
+    )
+    bundle_viewer.set_defaults(function=_view_bundle)
+
+    method_viewer = subcommands.add_parser(
+        "view-methods", help="compare four paired baseline methods in one viewer",
+    )
+    method_viewer.add_argument("--manifest", required=True)
+    method_viewer.add_argument(
+        "--experiment",
+        help="experiment name; required when the manifest contains more than one",
+    )
+    method_viewer.add_argument(
+        "--scale", type=float, default=2.0,
+        help="render resolution divisor (default: 2)",
+    )
+    method_viewer.set_defaults(function=_view_methods)
+
+    orbit = subcommands.add_parser(
+        "validate-orbit", help="render and measure a closed checkpoint camera path",
+    )
+    orbit.add_argument("--config", required=True)
+    orbit.add_argument("--checkpoint", required=True)
+    orbit.add_argument("--method", choices=METHODS)
+    orbit.add_argument("--output-dir")
+    orbit.add_argument("--orbit-output")
+    orbit.add_argument("--frames", type=int, default=48)
+    orbit.add_argument("--fps", type=int, default=12)
+    orbit.set_defaults(function=_validate_orbit)
 
     inspect = subcommands.add_parser("inspect-segments", help="list segment ids in a GUI project state")
     inspect.add_argument("--project-state", required=True)
